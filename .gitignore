@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+
+# Build
+dist
+*.local
+
+# Env (keep example)
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
