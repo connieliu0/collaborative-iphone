@@ -6,6 +6,8 @@ import { publishComic, type PublishOptions } from '../lib/publish'
 import type { ComicFrame, OverlayPosition } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
 
+const PLACEHOLDER_TEXT = 'Your text here'
+
 const FONT_SIZE_PRESETS = [
   { label: 'Small', value: 14 },
   { label: 'Medium', value: 18 },
@@ -18,8 +20,6 @@ const FONT_COLOR_SWATCHES = [
   { label: 'Yellow', value: '#facc15' },
   { label: 'Red', value: '#ef4444' },
 ] as const
-
-type EditorTab = 'caption' | 'overlay'
 
 const PUBLISH_AUTH_MESSAGE = 'Create a free account to publish your comic'
 
@@ -38,21 +38,14 @@ export function EditPage() {
 
   const currentIndex = frames.findIndex((f) => f.id === frameId)
   const frame: ComicFrame | undefined = frames[currentIndex]
-  const [activeTab, setActiveTab] = useState<EditorTab>('caption')
-  const captionRef = useRef<HTMLTextAreaElement>(null)
-  const overlayRef = useRef<HTMLTextAreaElement>(null)
+  const [editingOnImage, setEditingOnImage] = useState(false)
+  const overlayInputRef = useRef<HTMLTextAreaElement>(null)
+  const styleToolbarRef = useRef<HTMLDivElement>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
   const overlayBoxRef = useRef<HTMLDivElement>(null)
   const dragStartRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
-
-  const handleTabClick = useCallback(
-    (tab: EditorTab) => {
-      setActiveTab(tab)
-      if (tab === 'caption') captionRef.current?.focus()
-      else overlayRef.current?.focus()
-    },
-    []
-  )
+  const dragMovedRef = useRef(false)
+  const toolbarInteractionRef = useRef(false)
 
   const clampPosition = useCallback(
     (x: number, y: number, containerRect: DOMRect, boxRect: DOMRect): OverlayPosition => {
@@ -73,7 +66,9 @@ export function EditPage() {
   const handleOverlayPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (!frame || !previewContainerRef.current || !overlayBoxRef.current) return
+      if (editingOnImage) return
       e.preventDefault()
+      dragMovedRef.current = false
       const container = previewContainerRef.current
       const box = overlayBoxRef.current
       const rect = container.getBoundingClientRect()
@@ -90,21 +85,21 @@ export function EditPage() {
       }
       ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
     },
-    [frame]
+    [frame, editingOnImage]
   )
 
   const handleOverlayPointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (!frame || !dragStartRef.current || !previewContainerRef.current || !overlayBoxRef.current)
         return
-      const container = previewContainerRef.current
-      const box = overlayBoxRef.current
-      const rect = container.getBoundingClientRect()
+      const rect = previewContainerRef.current.getBoundingClientRect()
       const deltaX = ((e.clientX - dragStartRef.current.startX) / rect.width) * 100
       const deltaY = ((e.clientY - dragStartRef.current.startY) / rect.height) * 100
+      if (Math.abs(deltaX) > 0.5 || Math.abs(deltaY) > 0.5) dragMovedRef.current = true
+      const box = overlayBoxRef.current
+      const boxRect = box.getBoundingClientRect()
       const newX = dragStartRef.current.x + deltaX
       const newY = dragStartRef.current.y + deltaY
-      const boxRect = box.getBoundingClientRect()
       const clamped = clampPosition(newX, newY, rect, boxRect)
       updateFrame(frame.id, { overlayPosition: { ...clamped } })
       dragStartRef.current = {
@@ -119,8 +114,12 @@ export function EditPage() {
   )
 
   const handleOverlayPointerUp = useCallback(() => {
+    if (!dragMovedRef.current && frame) {
+      setEditingOnImage(true)
+      setTimeout(() => overlayInputRef.current?.focus(), 0)
+    }
     dragStartRef.current = null
-  }, [])
+  }, [frame])
 
   const goToFrame = useCallback(
     (index: number) => {
@@ -176,7 +175,7 @@ export function EditPage() {
 
   return (
     <div className="flex flex-col min-h-0 w-full max-w-xl mx-auto overflow-x-hidden">
-      {/* Header: Back + Publish */}
+      {/* Header: Back + Preview + Publish */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <Link
           to="/create"
@@ -184,58 +183,65 @@ export function EditPage() {
         >
           ← Back to all frames
         </Link>
-        <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-white/70">Publish as:</span>
-            <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
-              <button
-                type="button"
-                onClick={() => setPublishMode('solo')}
-                className={`min-h-[36px] px-3 rounded-md text-sm font-medium transition-colors ${
-                  publishMode === 'solo' ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
-                }`}
-              >
-                Solo
-              </button>
-              <button
-                type="button"
-                onClick={() => setPublishMode('collab')}
-                className={`min-h-[36px] px-3 rounded-md text-sm font-medium transition-colors ${
-                  publishMode === 'collab' ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
-                }`}
-              >
-                Collab
-              </button>
-            </div>
-            {publishMode === 'collab' && (
-              <label className="flex items-center gap-2 text-sm text-white/70">
-                Max frames
-                <input
-                  type="number"
-                  min={1}
-                  max={24}
-                  value={maxFramesInput}
-                  onChange={(e) => setMaxFramesInput(e.target.value)}
-                  placeholder="24"
-                  className="w-14 px-2 py-1 rounded bg-white/10 border border-white/20 text-white text-sm"
-                />
-              </label>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/preview"
+            className="min-h-[44px] px-4 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors"
+          >
+            Preview
+          </Link>
           <button
             type="button"
             onClick={handlePublish}
             disabled={publishing}
-            className="min-h-[44px] px-4 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="min-h-[44px] px-4 py-2.5 rounded-lg border border-white/30 text-white font-medium text-sm hover:border-white/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
           >
             {publishing ? 'Publishing...' : 'Publish'}
           </button>
-          {publishError && (
-            <p className="text-sm text-red-400" role="alert">
-              {publishError}
-            </p>
-          )}
         </div>
+      </div>
+      {publishError && (
+        <p className="text-sm text-red-400 mb-2" role="alert">
+          {publishError}
+        </p>
+      )}
+      {/* Publish options: Solo / Collab (optional, compact) */}
+      <div className="flex items-center gap-2 mb-3 text-sm text-white/70">
+        <span>Publish as:</span>
+        <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
+          <button
+            type="button"
+            onClick={() => setPublishMode('solo')}
+            className={`min-h-[32px] px-2.5 rounded-md text-sm font-medium transition-colors ${
+              publishMode === 'solo' ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
+            }`}
+          >
+            Solo
+          </button>
+          <button
+            type="button"
+            onClick={() => setPublishMode('collab')}
+            className={`min-h-[32px] px-2.5 rounded-md text-sm font-medium transition-colors ${
+              publishMode === 'collab' ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
+            }`}
+          >
+            Collab
+          </button>
+        </div>
+        {publishMode === 'collab' && (
+          <label className="flex items-center gap-1.5">
+            Max frames
+            <input
+              type="number"
+              min={1}
+              max={24}
+              value={maxFramesInput}
+              onChange={(e) => setMaxFramesInput(e.target.value)}
+              placeholder="24"
+              className="w-12 px-1.5 py-0.5 rounded bg-white/10 border border-white/20 text-white text-sm"
+            />
+          </label>
+        )}
       </div>
       {/* Top: Frame Preview — responsive height so panel fits in viewport */}
       <section
@@ -253,159 +259,135 @@ export function EditPage() {
               className="w-full h-full object-cover block"
               draggable={false}
             />
-            {frame.overlayText.trim() && (
-              <div
-                ref={overlayBoxRef}
-                role="img"
-                aria-label="Overlay text"
-                className="absolute cursor-grab active:cursor-grabbing select-none touch-none border-2 border-white/50 rounded-lg p-2 min-w-[60px] min-h-[32px] flex items-center justify-center shadow-lg bg-black/30"
-                style={{
-                  left: `${frame.overlayPosition.x}%`,
-                  top: `${frame.overlayPosition.y}%`,
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: `${frame.fontSize}px`,
-                  color: frame.fontColor,
-                  fontWeight: 'bold',
-                  textShadow:
-                    '0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6), 1px 1px 3px rgba(0,0,0,0.8)',
-                }}
-                onPointerDown={handleOverlayPointerDown}
-                onPointerMove={handleOverlayPointerMove}
-                onPointerUp={handleOverlayPointerUp}
-                onPointerLeave={handleOverlayPointerUp}
-                onPointerCancel={handleOverlayPointerUp}
-              >
-                <span className="pointer-events-none whitespace-pre-wrap break-words text-center">
-                  {frame.overlayText}
-                </span>
-                <svg
-                  className="absolute bottom-0 right-0 w-4 h-4 text-white/70 pointer-events-none"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden
-                >
-                  <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zM8 16h2v2H8v-2zm6 0h2v2h-2v-2z" />
-                </svg>
-              </div>
-            )}
-          </div>
-          <div
-            className="w-full bg-black/60 text-white px-3 py-2 shrink-0"
-            style={{ fontSize: `${frame.fontSize}px` }}
-          >
-            {frame.caption.trim() || '\u00A0'}
+            <div
+              ref={overlayBoxRef}
+              role={editingOnImage ? undefined : 'img'}
+              aria-label={editingOnImage ? undefined : 'Text on image - tap to edit'}
+              className={`absolute rounded-lg p-2 min-w-[80px] min-h-[40px] flex items-center justify-center shadow-lg bg-black/30 ${
+                editingOnImage ? 'cursor-text border-2 border-white' : 'cursor-grab active:cursor-grabbing select-none touch-none border-2 border-white/50'
+              }`}
+              style={{
+                left: `${frame.overlayPosition.x}%`,
+                top: `${frame.overlayPosition.y}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+              onPointerDown={handleOverlayPointerDown}
+              onPointerMove={handleOverlayPointerMove}
+              onPointerUp={handleOverlayPointerUp}
+              onPointerLeave={handleOverlayPointerUp}
+              onPointerCancel={handleOverlayPointerUp}
+            >
+              {editingOnImage ? (
+                <textarea
+                  ref={overlayInputRef}
+                  value={frame.overlayText}
+                  onChange={(e) => {
+                    updateFrame(frame.id, { overlayText: e.target.value })
+                    const el = e.target
+                    el.style.height = 'auto'
+                    el.style.height = `${Math.max(28, el.scrollHeight)}px`
+                  }}
+                  onBlur={() => {
+                    // Don't close when user is tapping a font/color button (toolbar would unmount before click)
+                    setTimeout(() => {
+                      const focusInToolbar = styleToolbarRef.current?.contains(document.activeElement)
+                      if (!focusInToolbar && !toolbarInteractionRef.current) {
+                        setEditingOnImage(false)
+                      }
+                      toolbarInteractionRef.current = false
+                    }, 120)
+                  }}
+                  placeholder={PLACEHOLDER_TEXT}
+                  className="w-full min-w-[60px] min-h-[28px] bg-transparent border-0 outline-none resize-none overflow-hidden text-center placeholder-white/50 py-0"
+                  style={{
+                    fontSize: `${frame.fontSize}px`,
+                    color: frame.fontColor,
+                    fontWeight: 'bold',
+                    textShadow:
+                      '0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6), 1px 1px 3px rgba(0,0,0,0.8)',
+                  }}
+                  rows={1}
+                  aria-label="Edit text on image"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <>
+                  <span className="pointer-events-none whitespace-pre-wrap break-words text-center" style={{
+                    fontSize: `${frame.fontSize}px`,
+                    color: frame.fontColor,
+                    fontWeight: 'bold',
+                    textShadow:
+                      '0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6), 1px 1px 3px rgba(0,0,0,0.8)',
+                  }}>
+                    {frame.overlayText.trim() || PLACEHOLDER_TEXT}
+                  </span>
+                  <svg
+                    className="absolute bottom-0 right-0 w-4 h-4 text-white/70 pointer-events-none"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path d="M8 6h2v2H8V6zm6 0h2v2h-2V6zM8 11h2v2H8v-2zm6 0h2v2h-2v-2zM8 16h2v2H8v-2zm6 0h2v2h-2v-2z" />
+                  </svg>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Bottom: Editor Panel — scrollable */}
+      {/* Bottom: Font/color when editing on image; frame nav always */}
       <div className="flex-1 min-h-0 flex flex-col bg-[#0d0d0d] rounded-t-2xl overflow-hidden">
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {/* Mode toggle */}
-          <div className="flex rounded-lg bg-white/5 p-1 gap-1">
-            <button
-              type="button"
-              onClick={() => handleTabClick('caption')}
-              className={`flex-1 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'caption'
-                  ? 'bg-white text-black'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
-              }`}
+          {/* Font and color — only when editing text on the image */}
+          {editingOnImage && (
+            <div
+              ref={styleToolbarRef}
+              className="space-y-3"
+              onPointerDown={() => { toolbarInteractionRef.current = true }}
             >
-              Caption
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabClick('overlay')}
-              className={`flex-1 min-h-[44px] rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'overlay'
-                  ? 'bg-white text-black'
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              Overlay
-            </button>
-          </div>
-
-          {/* Caption field */}
-          <div>
-            <label htmlFor="edit-caption" className="sr-only">
-              Caption
-            </label>
-            <textarea
-              id="edit-caption"
-              ref={captionRef}
-              value={frame.caption}
-              onChange={(e) => updateFrame(frame.id, { caption: e.target.value })}
-              onFocus={() => setActiveTab('caption')}
-              placeholder="Add a caption..."
-              rows={2}
-              className="w-full min-h-[80px] px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
-            />
-          </div>
-
-          {/* Overlay field */}
-          <div>
-            <label htmlFor="edit-overlay" className="sr-only">
-              Overlay text
-            </label>
-            <textarea
-              id="edit-overlay"
-              ref={overlayRef}
-              value={frame.overlayText}
-              onChange={(e) => updateFrame(frame.id, { overlayText: e.target.value })}
-              onFocus={() => setActiveTab('overlay')}
-              placeholder="Add overlay text..."
-              rows={2}
-              className="w-full min-h-[80px] px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/40 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent"
-            />
-          </div>
-
-          {/* Style controls */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-white/90">
-              Style {activeTab === 'caption' ? '(caption)' : '(overlay)'}
-            </p>
-            <div>
-              <span className="text-xs text-white/60 block mb-1.5">Font size</span>
-              <div className="flex gap-2">
-                {FONT_SIZE_PRESETS.map(({ label, value }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => updateFrame(frame.id, { fontSize: value })}
-                    className={`min-h-[40px] px-3 rounded-lg text-sm font-medium transition-colors ${
-                      frame.fontSize === value
-                        ? 'bg-white text-black'
-                        : 'bg-white/10 text-white hover:bg-white/20'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <p className="text-sm font-medium text-white/90">Style</p>
+              <div>
+                <span className="text-xs text-white/60 block mb-1.5">Font</span>
+                <div className="flex gap-2">
+                  {FONT_SIZE_PRESETS.map(({ label, value }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => updateFrame(frame.id, { fontSize: value })}
+                      className={`min-h-[40px] px-3 rounded-lg text-sm font-medium transition-colors ${
+                        frame.fontSize === value
+                          ? 'bg-white text-black'
+                          : 'bg-white/10 text-white hover:bg-white/20'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="text-xs text-white/60 block mb-1.5">Color</span>
+                <div className="flex gap-2 flex-wrap">
+                  {FONT_COLOR_SWATCHES.map(({ label, value }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => updateFrame(frame.id, { fontColor: value })}
+                      className={`min-h-[40px] min-w-[44px] rounded-lg border-2 transition-colors ${
+                        frame.fontColor === value
+                          ? 'border-white ring-2 ring-white/50'
+                          : 'border-white/20 hover:border-white/40'
+                      }`}
+                      style={{ backgroundColor: value }}
+                      title={label}
+                      aria-label={`Color ${label}`}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-            <div>
-              <span className="text-xs text-white/60 block mb-1.5">Font color</span>
-              <div className="flex gap-2 flex-wrap">
-                {FONT_COLOR_SWATCHES.map(({ label, value }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => updateFrame(frame.id, { fontColor: value })}
-                    className={`min-h-[40px] min-w-[44px] rounded-lg border-2 transition-colors ${
-                      frame.fontColor === value
-                        ? 'border-white ring-2 ring-white/50'
-                        : 'border-white/20 hover:border-white/40'
-                    }`}
-                    style={{ backgroundColor: value }}
-                    title={label}
-                    aria-label={`Color ${label}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Frame navigation */}

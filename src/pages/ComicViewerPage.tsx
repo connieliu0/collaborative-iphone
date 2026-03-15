@@ -42,7 +42,17 @@ import { useAuth } from '../hooks/useAuth'
 
 const SWIPE_THRESHOLD_PX = 50
 
-export function FrameContent({ frame }: { frame: FrameRow }) {
+export interface FrameDisplay {
+  image_url: string
+  caption: string
+  overlay_text: string
+  overlay_x: number
+  overlay_y: number
+  font_size: number
+  font_color: string
+}
+
+export function FrameContent({ frame }: { frame: FrameDisplay }) {
   return (
     <div className="relative w-full flex-1 min-h-0 flex flex-col bg-black rounded-lg overflow-hidden">
       <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
@@ -52,7 +62,7 @@ export function FrameContent({ frame }: { frame: FrameRow }) {
           className="max-w-full max-h-full w-full h-full object-contain block"
           draggable={false}
         />
-        {frame.overlay_text?.trim() ? (
+        {frame.overlay_text.trim() ? (
           <div
             role="img"
             aria-label="Overlay text"
@@ -74,7 +84,7 @@ export function FrameContent({ frame }: { frame: FrameRow }) {
           </div>
         ) : null}
       </div>
-      {frame.caption?.trim() ? (
+      {frame.caption.trim() ? (
         <div
           className="w-full bg-black/60 text-white px-3 py-2 shrink-0 text-center"
           style={{ fontSize: `${frame.font_size}px` }}

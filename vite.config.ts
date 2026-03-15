@@ -7,6 +7,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
+  optimizeDeps: {
+    include: ['heic2any'],
+  },
   plugins: [
     react(),
     VitePWA({

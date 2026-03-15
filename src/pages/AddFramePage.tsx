@@ -5,6 +5,7 @@ import { useComic } from '../hooks/useComic'
 import { FrameContent } from './ComicViewerPage'
 import type { FrameRow } from '../hooks/useComic'
 import { addFrameToComic, type AddFramePayload } from '../lib/publish'
+import { ensureJpeg, isHeic } from '../lib/heic'
 import type { OverlayPosition } from '../stores/useComicStore'
 
 const FONT_SIZE_PRESETS = [14, 18, 24] as const
@@ -32,19 +33,37 @@ export function AddFramePage() {
   const [fontColor, setFontColor] = useState('#ffffff')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [convertingHeic, setConvertingHeic] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const previewContainerRef = useRef<HTMLDivElement>(null)
   const overlayBoxRef = useRef<HTMLDivElement>(null)
   const dragStartRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
 
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file?.type.startsWith('image/')) return
-    if (imageUrl) URL.revokeObjectURL(imageUrl)
-    setImageFile(file)
-    setImageUrl(URL.createObjectURL(file))
-    e.target.value = ''
-  }, [imageUrl])
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      e.target.value = ''
+      if (imageUrl) URL.revokeObjectURL(imageUrl)
+      if (isHeic(file)) {
+        setConvertingHeic(true)
+        setSubmitError(null)
+        try {
+          const jpeg = await ensureJpeg(file)
+          setImageFile(jpeg)
+          setImageUrl(URL.createObjectURL(jpeg))
+        } catch (err) {
+          setSubmitError(err instanceof Error ? err.message : 'Failed to convert HEIC image')
+        } finally {
+          setConvertingHeic(false)
+        }
+      } else {
+        setImageFile(file)
+        setImageUrl(URL.createObjectURL(file))
+      }
+    },
+    [imageUrl]
+  )
 
   const clampPosition = useCallback(
     (x: number, y: number, containerRect: DOMRect, boxRect: DOMRect): OverlayPosition => {
@@ -257,7 +276,7 @@ export function AddFramePage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.heif"
             onChange={handleFileChange}
             className="hidden"
             aria-label="Choose image"
@@ -265,10 +284,21 @@ export function AddFramePage() {
           {!imageUrl ? (
             <button
               type="button"
+              disabled={convertingHeic}
               onClick={() => fileInputRef.current?.click()}
-              className="w-full min-h-[160px] rounded-lg border-2 border-dashed border-white/30 hover:border-white/50 flex items-center justify-center text-white/70 text-sm"
+              className="w-full min-h-[160px] rounded-lg border-2 border-dashed border-white/30 hover:border-white/50 flex flex-col items-center justify-center gap-2 text-white/70 text-sm disabled:opacity-60"
             >
-              Pick image
+              {convertingHeic ? (
+                <>
+                  <div
+                    className="h-8 w-8 shrink-0 rounded-full border-2 border-white/30 border-t-white animate-spin"
+                    aria-hidden
+                  />
+                  <span>Converting HEIC…</span>
+                </>
+              ) : (
+                'Pick image'
+              )}
             </button>
           ) : (
             <div

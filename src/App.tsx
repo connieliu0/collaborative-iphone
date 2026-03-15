@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { HomePage } from './pages/HomePage'
 import { CreatePage } from './pages/CreatePage'
 import { EditPage } from './pages/EditPage'
+import { PreviewPage } from './pages/PreviewPage'
 import { ComicViewerPage } from './pages/ComicViewerPage'
 import { AddFramePage } from './pages/AddFramePage'
 import { PublishPage } from './pages/PublishPage'
@@ -24,6 +25,7 @@ export function App() {
               </ErrorBoundary>
             }
           />
+          <Route path="/preview" element={<PreviewPage />} />
           <Route
             path="/comic/:id/add"
             element={

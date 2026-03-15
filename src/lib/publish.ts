@@ -5,10 +5,12 @@ const BUCKET = 'comic-frames'
 const MAX_FRAMES_CAP = 24
 
 function getFileExtension(file: File): string {
+  if (/^image\/(heic|heif)/i.test(file.type)) return '.jpg'
   const name = file.name
   const lastDot = name.lastIndexOf('.')
   if (lastDot === -1) return '.png'
   const ext = name.slice(lastDot).toLowerCase()
+  if (/\.heic$/i.test(ext)) return '.jpg'
   return /\.(jpe?g|png|gif|webp)$/.test(ext) ? ext : '.png'
 }
 

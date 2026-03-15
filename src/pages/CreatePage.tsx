@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthModal } from '../contexts/AuthModalContext'
 import { useAuth } from '../hooks/useAuth'
+import { ensureJpeg } from '../lib/heic'
 import { publishComic, type PublishOptions } from '../lib/publish'
 import {
   DndContext,
@@ -248,6 +249,7 @@ export function CreatePage() {
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishMode, setPublishMode] = useState<'solo' | 'collab'>('solo')
   const [maxFramesInput, setMaxFramesInput] = useState<string>('')
+  const [processingFiles, setProcessingFiles] = useState(false)
 
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
@@ -286,17 +288,23 @@ export function CreatePage() {
     }
   }, [view, filmstripSelectedId, frames])
 
-  const handleSelectFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length) return
     const fileList = Array.from(files)
-    const remaining = MAX_FRAMES - frames.length
-    const toAdd = fileList.slice(0, remaining)
-    addFrames(toAdd)
-    if (fileList.length > remaining || frames.length + toAdd.length === MAX_FRAMES) {
-      setLimitMessageShown(true)
-    }
     e.target.value = ''
+    const remaining = MAX_FRAMES - frames.length
+    const toProcess = fileList.slice(0, remaining)
+    setProcessingFiles(true)
+    try {
+      const converted = await Promise.all(toProcess.map((f) => ensureJpeg(f)))
+      addFrames(converted)
+      if (fileList.length > remaining || frames.length + converted.length === MAX_FRAMES) {
+        setLimitMessageShown(true)
+      }
+    } finally {
+      setProcessingFiles(false)
+    }
   }
 
   const openFileInput = () => {
@@ -354,11 +362,24 @@ export function CreatePage() {
   }
 
   return (
-    <div className="w-full max-w-xl mx-auto overflow-x-hidden min-w-0">
+    <div className="relative w-full max-w-xl mx-auto overflow-x-hidden min-w-0">
+      {processingFiles && (
+        <div
+          className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-black/70 backdrop-blur-sm"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div
+            className="h-10 w-10 shrink-0 rounded-full border-2 border-white/30 border-t-white animate-spin"
+            aria-hidden
+          />
+          <p className="text-sm font-medium text-white/90">Converting images…</p>
+        </div>
+      )}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.heic,.heif"
         multiple
         max={MAX_FRAMES}
         onChange={handleSelectFiles}
@@ -545,11 +566,18 @@ export function CreatePage() {
                 Maximum 12 frames reached
               </p>
             )}
+            <Link
+              to="/preview"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              aria-disabled={frames.length === 0}
+            >
+              Preview
+            </Link>
             <button
               type="button"
               onClick={handlePublish}
               disabled={publishing || frames.length === 0}
-              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-white/30 text-white font-medium text-sm hover:border-white/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
             >
               {publishing ? 'Publishing...' : 'Publish'}
             </button>
