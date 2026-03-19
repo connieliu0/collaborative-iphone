@@ -84,15 +84,15 @@ export function ResultsPage() {
       {collabComic && (
         <section className="w-full mb-6">
           <h2 className="text-sm font-medium text-gray-700 mb-2">Collaborative Comic</h2>
-          <Link
-            to={{
-              pathname: `/comic/${collabComic.slug}`,
-              state: { sessionCode: code },
+          <button
+            type="button"
+            onClick={() => {
+              navigate(`/comic/${collabComic.slug}`, { state: { sessionCode: code } })
             }}
             className={btnPrimary + ' w-full text-center block'}
           >
             View Collaborative Comic →
-          </Link>
+          </button>
         </section>
       )}
 
@@ -100,11 +100,11 @@ export function ResultsPage() {
         <h2 className="text-sm font-medium text-gray-700 mb-3">Personal Comics</h2>
         <div className="flex flex-col gap-2">
           {personalComics.map((comic) => (
-            <Link
+            <button
               key={comic.id}
-              to={{
-                pathname: `/comic/${comic.slug}`,
-                state: { sessionCode: code },
+              type="button"
+              onClick={() => {
+                navigate(`/comic/${comic.slug}`, { state: { sessionCode: code } })
               }}
               className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3 hover:bg-gray-50 transition-colors"
             >
@@ -112,7 +112,7 @@ export function ResultsPage() {
                 {comic.username ? `@${comic.username}` : 'Player'}
               </span>
               <span className="text-sm text-gray-500">View →</span>
-            </Link>
+            </button>
           ))}
         </div>
       </section>
