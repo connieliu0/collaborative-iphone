@@ -72,34 +72,39 @@ export function PublishPage() {
     const name = inviteUsername.trim()
     if (!name) return
     if (!comic || !user) return
-    const current = comic.turn_order ?? [comic.owner_id]
-    const collabIds = current.filter((id) => id !== comic.owner_id)
-    if (collabIds.length >= MAX_COLLABORATORS) {
-      setInviteError(`Maximum ${MAX_COLLABORATORS} collaborators`)
-      return
+    setSavingInvites(true)
+    try {
+      const current = comic.turn_order ?? [comic.owner_id]
+      const collabIds = current.filter((id) => id !== comic.owner_id)
+      if (collabIds.length >= MAX_COLLABORATORS) {
+        setInviteError(`Maximum ${MAX_COLLABORATORS} collaborators`)
+        return
+      }
+      const profile = await getProfileByUsername(name)
+      if (!profile) {
+        setInviteError('Username not found')
+        return
+      }
+      if (profile.id === comic.owner_id) {
+        setInviteError('Cannot add yourself')
+        return
+      }
+      if (collabIds.includes(profile.id)) {
+        setInviteError('Already added')
+        return
+      }
+      const newCollabIds = [...collabIds, profile.id]
+      const result = await updateComicCollaborators(comic.id, comic.owner_id, newCollabIds)
+      if (result.error) {
+        setInviteError(result.error)
+        return
+      }
+      setInviteUsername('')
+      setCollaboratorProfiles((prev) => [...prev.filter((p) => p.id !== profile.id), profile])
+      refetchComic()
+    } finally {
+      setSavingInvites(false)
     }
-    const profile = await getProfileByUsername(name)
-    if (!profile) {
-      setInviteError('Username not found')
-      return
-    }
-    if (profile.id === comic.owner_id) {
-      setInviteError('Cannot add yourself')
-      return
-    }
-    if (collabIds.includes(profile.id)) {
-      setInviteError('Already added')
-      return
-    }
-    const newCollabIds = [...collabIds, profile.id]
-    const result = await updateComicCollaborators(comic.id, comic.owner_id, newCollabIds)
-    if (result.error) {
-      setInviteError(result.error)
-      return
-    }
-    setInviteUsername('')
-    setCollaboratorProfiles((prev) => [...prev.filter((p) => p.id !== profile.id), profile])
-    refetchComic()
   }, [inviteUsername, comic, user, refetchComic])
 
   const handleRemoveCollaborator = useCallback(
