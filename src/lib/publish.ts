@@ -155,8 +155,10 @@ export async function publishComic(
     comic_id: comicId,
     order: index,
     image_url: uploadedUrls[index],
-    caption: frame.caption,
-    overlay_text: frame.overlayText,
+    // Backend no longer supports a separate overlay_text column.
+    // We store the "visible" text into `frames.caption`.
+    // If a frame is in overlay mode, prefer overlayText; otherwise use caption.
+    caption: frame.caption.trim() ? frame.caption : frame.overlayText,
     overlay_x: frame.overlayPosition.x,
     overlay_y: frame.overlayPosition.y,
     font_size: frame.fontSize,
@@ -254,8 +256,7 @@ export async function updateComic(
     comic_id: comicId,
     order: index,
     image_url: uploadedUrls[index],
-    caption: frame.caption,
-    overlay_text: frame.overlayText,
+    caption: frame.caption.trim() ? frame.caption : frame.overlayText,
     overlay_x: frame.overlayPosition.x,
     overlay_y: frame.overlayPosition.y,
     font_size: frame.fontSize,
@@ -356,8 +357,9 @@ export async function addFrameToComic(
     comic_id: comicId,
     order,
     image_url: imageUrl,
-    caption: payload.caption,
-    overlay_text: payload.overlayText,
+    // We persist "overlay text" into caption (overlay_text column removed).
+    // If the user didn't set caption but did set overlayText, use overlayText.
+    caption: payload.caption.trim() ? payload.caption : payload.overlayText,
     overlay_x: payload.overlay_x,
     overlay_y: payload.overlay_y,
     font_size: payload.font_size,

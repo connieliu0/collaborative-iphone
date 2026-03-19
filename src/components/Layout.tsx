@@ -4,17 +4,27 @@ import { useAuth } from '../hooks/useAuth'
 import { useDraftPersistence } from '../hooks/useDraftPersistence'
 import { useAuthModal } from '../contexts/AuthModalContext'
 
-const isComicViewerPath = (pathname: string) => /^\/comic\/[^/]+$/.test(pathname)
+const isFullscreenPath = (pathname: string) =>
+  /^\/comic\/[^/]+$/.test(pathname) || /^\/session\/[^/]+\/visualizer$/.test(pathname)
 
 export function Layout({ children }: { children?: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const { openAuthModal } = useAuthModal()
   useDraftPersistence(user, authLoading)
   const location = useLocation()
-  const hideNav = isComicViewerPath(location.pathname)
+  const hideNav = isFullscreenPath(location.pathname)
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
+
+  useEffect(() => {
+    // Used by PreviewPage "back" behavior in collab mode.
+    // Whenever we're on a collab session route, remember the session code.
+    if (typeof window === 'undefined') return
+    const match = location.pathname.match(/^\/session\/([^/]+)(?:\/|$)/)
+    const code = match?.[1]
+    if (code) window.sessionStorage.setItem('collabSessionCode', code)
+  }, [location.pathname])
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)

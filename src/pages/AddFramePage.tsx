@@ -256,7 +256,7 @@ export function AddFramePage() {
         <div className="flex flex-col gap-3">
           {frames.map((frame: FrameRow) => (
             <div key={frame.id} className="shrink-0 rounded-lg overflow-hidden border border-gray-200">
-              <FrameContent frame={frame} />
+              <FrameContent frame={frame} showCaption={false} />
             </div>
           ))}
         </div>

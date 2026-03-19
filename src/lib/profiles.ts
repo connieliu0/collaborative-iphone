@@ -29,3 +29,19 @@ export async function getProfilesByIds(ids: string[]): Promise<ProfileRow[]> {
   if (error || !data) return []
   return data as ProfileRow[]
 }
+
+export async function updateMyUsername(
+  userId: string,
+  username: string
+): Promise<{ success: true } | { error: string }> {
+  const next = username.trim()
+  if (!next) return { error: 'Name is required' }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ username: next })
+    .eq('id', userId)
+
+  if (error) return { error: error.message }
+  return { success: true }
+}

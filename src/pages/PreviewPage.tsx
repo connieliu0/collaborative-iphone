@@ -12,6 +12,15 @@ export function PreviewPage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const swipeStartRef = useRef<{ x: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const collabSessionCode =
+    typeof window !== 'undefined' ? window.sessionStorage.getItem('collabSessionCode') : null
+
+  const closeTo =
+    collabSessionCode && collabSessionCode.trim()
+      ? `/session/${collabSessionCode}/complete`
+      : frames.length > 0
+        ? `/edit?frame=${frames[0].id}`
+        : '/create'
 
   useEffect(() => {
     if (frames.length > 0) containerRef.current?.focus()
@@ -22,7 +31,6 @@ export function PreviewPage() {
     .map((frame) => ({
     image_url: frame.imageUrl,
     caption: frame.caption,
-    overlay_text: frame.overlayText,
     overlay_x: frame.overlayPosition.x,
     overlay_y: frame.overlayPosition.y,
     font_size: frame.fontSize,
@@ -102,7 +110,7 @@ export function PreviewPage() {
     >
       <div className="absolute top-4 right-4 z-10">
         <Link
-          to={frames.length > 0 ? `/edit?frame=${frames[0].id}` : '/create'}
+          to={closeTo}
           className="p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Close preview"
         >

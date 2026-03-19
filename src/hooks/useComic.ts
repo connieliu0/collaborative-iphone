@@ -22,7 +22,6 @@ export interface FrameRow {
   order: number
   image_url: string
   caption: string
-  overlay_text: string
   overlay_x: number
   overlay_y: number
   font_size: number
@@ -78,7 +77,7 @@ export function useComic(id: string | undefined): UseComicResult {
 
       const { data: framesData, error: framesError } = await supabase
         .from('frames')
-        .select('id, comic_id, order, image_url, caption, overlay_text, overlay_x, overlay_y, font_size, font_color')
+        .select('id, comic_id, order, image_url, caption, overlay_x, overlay_y, font_size, font_color')
         .eq('comic_id', comicData.id)
         .order('order', { ascending: true })
 

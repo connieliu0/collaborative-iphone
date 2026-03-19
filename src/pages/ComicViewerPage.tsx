@@ -33,7 +33,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { endComic } from '../lib/publish'
 import { useComic } from '../hooks/useComic'
@@ -50,7 +50,6 @@ const FONT_FAMILY_OPTIONS: Record<string, string> = {
 export interface FrameDisplay {
   image_url: string
   caption: string
-  overlay_text: string
   overlay_x: number
   overlay_y: number
   font_size: number
@@ -73,6 +72,13 @@ export function FrameContent({
       ? FONT_FAMILY_OPTIONS[frame.font_family] ?? frame.font_family
       : '"News Cycle", sans-serif'
 
+  // When we render the frame text as an "overlay on the image", bias the position
+  // toward the lower half by default (many existing frames default to overlay_y=50).
+  const overlayTopPct =
+    typeof frame.overlay_y === 'number'
+      ? Math.min(92, Math.max(87, frame.overlay_y))
+      : 87
+
   return (
     <div
       className={[
@@ -87,14 +93,15 @@ export function FrameContent({
           className="max-w-full max-h-full w-full h-full object-contain block"
           draggable={false}
         />
-        {frame.overlay_text.trim() ? (
+        {/* Render caption as an overlay on the image (we removed the dedicated overlay_text column). */}
+        {frame.caption.trim() ? (
           <div
             role="img"
             aria-label="Overlay text"
             className="absolute select-none pointer-events-none flex items-center justify-center"
             style={{
               left: `${frame.overlay_x}%`,
-              top: `${frame.overlay_y}%`,
+              top: `${overlayTopPct}%`,
               transform: 'translate(-50%, -50%)',
               fontSize: `${frame.font_size}px`,
               color: frame.font_color,
@@ -112,7 +119,7 @@ export function FrameContent({
                   '1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
               }}
             >
-              {frame.overlay_text}
+              {frame.caption}
             </span>
           </div>
         ) : null}
@@ -132,11 +139,43 @@ export function FrameContent({
 export function ComicViewerPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
+  const location = useLocation()
   const { comic, frames, loading, error, refetch } = useComic(id ?? undefined)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [ending, setEnding] = useState(false)
   const swipeStartRef = useRef<{ x: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const sessionCodeFromState = (location.state as { sessionCode?: string } | null)?.sessionCode
+  const [backTo, setBackTo] = useState(sessionCodeFromState ? `/session/${sessionCodeFromState}/complete` : '/')
+
+  useEffect(() => {
+    // If we weren't given state (e.g. refresh/bookmark), try to resolve the session code from DB.
+    // Note: This requires the viewer to be an authenticated session member due to RLS on `sessions`.
+    if (sessionCodeFromState) return
+    if (!user) return
+    if (!comic?.id) return
+
+    void (async () => {
+      const { data: comicRow, error: comicRowError } = await supabase
+        .from('comics')
+        .select('session_id')
+        .eq('id', comic.id)
+        .maybeSingle()
+
+      if (comicRowError || !comicRow?.session_id) return
+
+      const { data: sessionRow, error: sessionRowError } = await supabase
+        .from('sessions')
+        .select('code')
+        .eq('id', comicRow.session_id)
+        .maybeSingle()
+
+      if (sessionRowError || !sessionRow?.code) return
+
+      setBackTo(`/session/${sessionRow.code}/complete`)
+    })()
+  }, [sessionCodeFromState, user, comic?.id])
 
   useEffect(() => {
     if (!loading && comic) containerRef.current?.focus()
@@ -228,7 +267,7 @@ export function ComicViewerPage() {
     return (
       <div className="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center text-gray-900">
         <Link
-          to="/"
+          to={backTo}
           className="absolute top-4 left-4 z-10 p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back to home"
         >
@@ -253,7 +292,7 @@ export function ComicViewerPage() {
       {/* Back to nav */}
       <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
         <Link
-          to="/"
+          to={backTo}
           className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center pointer-events-auto"
           aria-label="Back to home"
         >
@@ -285,7 +324,7 @@ export function ComicViewerPage() {
         onPointerCancel={onPointerUp}
       >
         {currentFrame ? (
-          <FrameContent frame={currentFrame} />
+          <FrameContent frame={currentFrame} showCaption={false} />
         ) : (
           <p className="text-gray-500">No frames</p>
         )}

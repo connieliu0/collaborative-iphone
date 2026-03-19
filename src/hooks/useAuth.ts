@@ -7,6 +7,7 @@ export interface UseAuthResult {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInAnonymously: () => Promise<{ user: User | null; error: Error | null }>
   signOut: () => Promise<void>
 }
 
@@ -37,9 +38,14 @@ export function useAuth(): UseAuthResult {
     return { error: error ?? null }
   }
 
+  const signInAnonymously = async () => {
+    const { data, error } = await supabase.auth.signInAnonymously()
+    return { user: data?.user ?? null, error: error ?? null }
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
   }
 
-  return { user, loading, signIn, signUp, signOut }
+  return { user, loading, signIn, signUp, signInAnonymously, signOut }
 }
