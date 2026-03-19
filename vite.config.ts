@@ -16,8 +16,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'Panelz',
-        short_name: 'Panelz',
+        name: 'Sequence',
+        short_name: 'Sequence',
         theme_color: '#000000',
         background_color: '#000000',
         display: 'standalone',

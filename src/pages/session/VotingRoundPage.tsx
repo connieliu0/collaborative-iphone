@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
@@ -14,6 +14,8 @@ import {
   type SessionVoteRow,
 } from '../../lib/session'
 
+const VOTING_SECONDS = 30
+
 const btnPrimary =
   'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 
@@ -26,11 +28,16 @@ export function VotingRoundPage() {
   const [matchups, setMatchups] = useState<SessionMatchupRow[]>([])
   const [votes, setVotes] = useState<SessionVoteRow[]>([])
   const [voting, setVoting] = useState(false)
+  const [tallying, setTallying] = useState(false)
   const [advancing, setAdvancing] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
+  const [timeLeft, setTimeLeft] = useState(VOTING_SECONDS)
 
   const isHost = user && session && session.host_id === user.id
+  const startedAtRef = useRef<number | null>(null)
+  const talliedMatchupsRef = useRef<Set<string>>(new Set())
+  const finishingRef = useRef(false)
 
   useEffect(() => {
     if (!session) return
@@ -132,6 +139,9 @@ export function VotingRoundPage() {
 
   const allMatchupsDone = matchups.length > 0 && matchups.every((m) => m.winner !== null)
 
+  const allVotedCountForCurrent = currentMatchup ? currentVoteCounts.a + currentVoteCounts.b : 0
+  const votingClosed = !!currentMatchup?.winner || allVotedOnCurrent || timeLeft <= 0
+
   const handleFinish = async () => {
     if (!session || !user) return
     setAdvancing(true)
@@ -143,6 +153,78 @@ export function VotingRoundPage() {
     await advanceRound(session.id, user.id, 'complete')
     setAdvancing(false)
   }
+
+  // Reset the local countdown whenever the active matchup changes.
+  useEffect(() => {
+    if (!currentMatchup) return
+    if (currentMatchup.winner) {
+      startedAtRef.current = null
+      setTimeLeft(0)
+      return
+    }
+    startedAtRef.current = Date.now()
+    setTimeLeft(VOTING_SECONDS)
+  }, [currentMatchup?.id, currentMatchup?.winner])
+
+  // Tick the countdown locally for UI, and stop when everyone has voted.
+  useEffect(() => {
+    if (!currentMatchup) return
+    if (currentMatchup.winner) return
+    if (allVotedOnCurrent) {
+      setTimeLeft(0)
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      const startedAt = startedAtRef.current
+      if (!startedAt) return
+
+      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
+      const remaining = Math.max(0, VOTING_SECONDS - elapsedSeconds)
+      setTimeLeft(remaining)
+    }, 250)
+
+    return () => window.clearInterval(interval)
+  }, [currentMatchup?.id, currentMatchup?.winner, allVotedOnCurrent])
+
+  // Host auto-tallies when the timer ends or when everyone has voted.
+  useEffect(() => {
+    if (!session?.id) return
+    if (!isHost) return
+    if (!currentMatchup) return
+    if (currentMatchup.winner) return
+    if (!allVotedOnCurrent && timeLeft > 0) return
+    if (talliedMatchupsRef.current.has(currentMatchup.id)) return
+
+    talliedMatchupsRef.current.add(currentMatchup.id)
+    setTallying(true)
+
+    void (async () => {
+      try {
+        await tallyMatchup(currentMatchup.id, session.id)
+        await loadMatchups()
+      } finally {
+        setTallying(false)
+      }
+    })()
+  }, [
+    isHost,
+    session?.id,
+    currentMatchup?.id,
+    currentMatchup?.winner,
+    allVotedOnCurrent,
+    timeLeft,
+    loadMatchups,
+  ])
+
+  // Host auto-finishes once all matchups have been tallied.
+  useEffect(() => {
+    if (!isHost) return
+    if (!allMatchupsDone) return
+    if (finishingRef.current) return
+    finishingRef.current = true
+    void handleFinish()
+  }, [isHost, allMatchupsDone])
 
   const previousWinner = useMemo(() => {
     if (activeMatchupIdx === 0) return null
@@ -211,6 +293,45 @@ export function VotingRoundPage() {
         Matchup {activeMatchupIdx + 1} of {matchups.length}
       </p>
 
+      <div className="mb-5">
+        <div
+          className={`text-2xl font-mono font-bold tabular-nums ${
+            votingClosed && !allVotedOnCurrent ? 'text-red-600' : 'text-gray-900'
+          }`}
+        >
+          {Math.max(0, timeLeft)}s
+        </div>
+
+        <div className="w-full bg-gray-100 rounded-full h-2 mt-2 mb-2">
+          <div
+            className="bg-gray-900 h-2 rounded-full transition-all"
+            style={{
+              width: `${(allVotedCountForCurrent / Math.max(members.length, 1)) * 100}%`,
+            }}
+          />
+        </div>
+
+        <p className="text-xs text-gray-500">
+          {allVotedCountForCurrent} / {members.length} players voted
+        </p>
+
+        {tallying && (
+          <p className="text-sm text-gray-600 mt-2" aria-live="polite">
+            Tallying votes…
+          </p>
+        )}
+        {!tallying && allVotedOnCurrent && (
+          <p className="text-sm text-gray-600 mt-2" aria-live="polite">
+            All votes in! Finalizing matchup…
+          </p>
+        )}
+        {!tallying && votingClosed && !allVotedOnCurrent && (
+          <p className="text-sm text-gray-600 mt-2" aria-live="polite">
+            Time is up! Finalizing matchup…
+          </p>
+        )}
+      </div>
+
       {previousWinner && (
         <div className="w-full mb-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
           <p className="text-xs text-gray-500 mb-2">Previous winning frame (for cohesion):</p>
@@ -227,7 +348,7 @@ export function VotingRoundPage() {
         <button
           type="button"
           onClick={() => handleVote('a')}
-          disabled={voting || myVoteForCurrent !== null}
+          disabled={voting || tallying || myVoteForCurrent !== null || votingClosed}
           className={`flex flex-col rounded-lg border-2 overflow-hidden transition-colors ${
             myVoteForCurrent?.choice === 'a'
               ? 'border-gray-900 ring-2 ring-gray-400'
@@ -252,7 +373,7 @@ export function VotingRoundPage() {
         <button
           type="button"
           onClick={() => handleVote('b')}
-          disabled={voting || myVoteForCurrent !== null}
+          disabled={voting || tallying || myVoteForCurrent !== null || votingClosed}
           className={`flex flex-col rounded-lg border-2 overflow-hidden transition-colors ${
             myVoteForCurrent?.choice === 'b'
               ? 'border-gray-900 ring-2 ring-gray-400'
@@ -275,7 +396,7 @@ export function VotingRoundPage() {
         </button>
       </div>
 
-      {myVoteForCurrent && !allVotedOnCurrent && (
+      {myVoteForCurrent && !allVotedOnCurrent && !votingClosed && (
         <p className="text-sm text-gray-500 mb-4">
           Voted! Waiting for others… ({currentVoteCounts.a + currentVoteCounts.b}/{members.length})
         </p>

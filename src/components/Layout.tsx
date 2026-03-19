@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useDraftPersistence } from '../hooks/useDraftPersistence'
 import { useAuthModal } from '../contexts/AuthModalContext'
@@ -66,24 +66,6 @@ export function Layout({ children }: { children?: React.ReactNode }) {
             >
               Log in
             </button>
-          </div>
-        )}
-        {user && (
-          <div className="flex items-center justify-end mb-4">
-            <Link
-              to="/profile"
-              aria-label="Go to profile"
-              className="w-[36px] h-[36px] rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-900 transition-colors"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                className="w-5 h-5"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-              </svg>
-            </Link>
           </div>
         )}
         {children ?? <Outlet />}

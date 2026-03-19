@@ -68,8 +68,8 @@ export function HomePage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-gray-900">Panelz</h1>
-        <p className="text-gray-600 mt-1">Create and share comics with friends.</p>
+        <h1 className="text-xl font-semibold text-gray-900">Sequence</h1>
+        <p className="text-gray-600 mt-1">Simple storytelling through word and image</p>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -79,9 +79,9 @@ export function HomePage() {
       </div>
 
       <div className="border-t border-gray-200 pt-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Collab Mode</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Collaborative mode</h2>
         <p className="text-sm text-gray-500 mb-4">
-          Play with friends — contribute images, write phrases, then vote on the best comic.
+          Contribute images, words, and combine them together.
         </p>
 
         <div className="flex flex-col gap-3">
