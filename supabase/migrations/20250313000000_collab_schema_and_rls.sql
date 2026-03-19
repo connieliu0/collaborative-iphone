@@ -121,6 +121,8 @@ ALTER TABLE public.frames ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "frames_select_public" ON public.frames;
 DROP POLICY IF EXISTS "frames_insert_owner_or_turn" ON public.frames;
+DROP POLICY IF EXISTS "frames_delete_owner" ON public.frames;
+DROP POLICY IF EXISTS "frames_update_owner" ON public.frames;
 
 CREATE POLICY "frames_select_public"
   ON public.frames FOR SELECT
@@ -136,6 +138,34 @@ CREATE POLICY "frames_insert_owner_or_turn"
           c.owner_id = auth.uid()
           OR c.current_turn_user_id = auth.uid()
         )
+    )
+  );
+
+-- Owner can replace frames during solo re-publish.
+CREATE POLICY "frames_delete_owner"
+  ON public.frames FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.comics c
+      WHERE c.id = comic_id
+        AND c.owner_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "frames_update_owner"
+  ON public.frames FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.comics c
+      WHERE c.id = comic_id
+        AND c.owner_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.comics c
+      WHERE c.id = comic_id
+        AND c.owner_id = auth.uid()
     )
   );
 
@@ -173,7 +203,6 @@ CREATE POLICY "profiles_insert_own"
 --   Policy: "Users can upload to own folder"  (INSERT): (bucket_id = 'comic-frames' AND (storage.foldername(name))[1] = auth.uid()::text)
 --   Policy: "Public read" (SELECT): true for comic-frames
 -- Or via SQL (bucket must exist):
-/*
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('comic-frames', 'comic-frames', true)
 ON CONFLICT (id) DO NOTHING;
@@ -188,4 +217,3 @@ CREATE POLICY "comic_frames_upload_own"
 CREATE POLICY "comic_frames_select_public"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'comic-frames');
-*/

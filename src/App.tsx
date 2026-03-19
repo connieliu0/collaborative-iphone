@@ -9,6 +9,7 @@ import { PreviewPage } from './pages/PreviewPage'
 import { ComicViewerPage } from './pages/ComicViewerPage'
 import { AddFramePage } from './pages/AddFramePage'
 import { PublishPage } from './pages/PublishPage'
+import { ProfilePage } from './pages/ProfilePage'
 
 export function App() {
   return (
@@ -43,6 +44,7 @@ export function App() {
             }
           />
           <Route path="/publish" element={<PublishPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </Layout>
     </AuthModalProvider>

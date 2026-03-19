@@ -36,11 +36,16 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { endComic } from '../lib/publish'
-import type { FrameRow } from '../hooks/useComic'
 import { useComic } from '../hooks/useComic'
 import { useAuth } from '../hooks/useAuth'
 
 const SWIPE_THRESHOLD_PX = 50
+
+const FONT_FAMILY_OPTIONS: Record<string, string> = {
+  Arial: 'Arial, sans-serif',
+  'Arial Narrow': '"Arial Narrow", Arial, sans-serif',
+  'News Cycle': '"News Cycle", sans-serif',
+}
 
 export interface FrameDisplay {
   image_url: string
@@ -50,11 +55,31 @@ export interface FrameDisplay {
   overlay_y: number
   font_size: number
   font_color: string
+  font_family?: string
 }
 
-export function FrameContent({ frame }: { frame: FrameDisplay }) {
+export function FrameContent({
+  frame,
+  showCaption = true,
+  variant = 'default',
+}: {
+  frame: FrameDisplay
+  showCaption?: boolean
+  variant?: 'default' | 'preview'
+}) {
+  const isPreview = variant === 'preview'
+  const resolvedFontFamily =
+    frame.font_family != null
+      ? FONT_FAMILY_OPTIONS[frame.font_family] ?? frame.font_family
+      : '"News Cycle", sans-serif'
+
   return (
-    <div className="relative w-full flex-1 min-h-0 flex flex-col bg-black rounded-lg overflow-hidden">
+    <div
+      className={[
+        'relative w-full flex-1 min-h-0 flex flex-col rounded-lg overflow-hidden',
+        isPreview ? 'bg-black border border-black' : 'bg-gray-200 border border-gray-200',
+      ].join(' ')}
+    >
       <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
         <img
           src={frame.image_url}
@@ -74,19 +99,27 @@ export function FrameContent({ frame }: { frame: FrameDisplay }) {
               fontSize: `${frame.font_size}px`,
               color: frame.font_color,
               fontWeight: 'bold',
-              textShadow:
-                '0 1px 2px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6), 1px 1px 3px rgba(0,0,0,0.8)',
             }}
           >
-            <span className="whitespace-pre-wrap break-words text-center">
+            <span
+              className="whitespace-pre-wrap break-words text-center"
+              style={{
+                fontFamily: resolvedFontFamily,
+                // Mimics an "outside stroke" outline (CSS text-stroke can’t be outside-only).
+                textShadow:
+                  '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85), ' +
+                  '0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85), ' +
+                  '1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
+              }}
+            >
               {frame.overlay_text}
             </span>
           </div>
         ) : null}
       </div>
-      {frame.caption.trim() ? (
+      {showCaption && frame.caption.trim() ? (
         <div
-          className="w-full bg-black/60 text-white px-3 py-2 shrink-0 text-center"
+          className="w-full bg-gray-800 text-white px-3 py-2 shrink-0 text-center text-sm"
           style={{ fontSize: `${frame.font_size}px` }}
         >
           {frame.caption}
@@ -182,10 +215,10 @@ export function ComicViewerPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+      <div className="fixed inset-0 bg-gray-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[640px] mx-auto px-4 py-4 animate-pulse">
-          <div className="w-full aspect-[4/3] max-h-[60vh] rounded-lg bg-white/10" />
-          <div className="h-4 w-16 bg-white/10 rounded mt-4 self-center" />
+          <div className="w-full aspect-[4/3] max-h-[60vh] rounded-lg bg-gray-200" />
+          <div className="h-4 w-16 bg-gray-200 rounded mt-4 self-center" />
         </div>
       </div>
     )
@@ -193,17 +226,17 @@ export function ComicViewerPage() {
 
   if (error || !comic) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center">
+      <div className="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center text-gray-900">
         <Link
           to="/"
-          className="absolute top-4 left-4 z-10 p-2 text-white/70 hover:text-white rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="absolute top-4 left-4 z-10 p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back to home"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <p className="text-white/80 text-center px-4">{error ?? 'Comic not found'}</p>
+        <p className="text-gray-600 text-center px-4">{error ?? 'Comic not found'}</p>
       </div>
     )
   }
@@ -211,7 +244,7 @@ export function ComicViewerPage() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 bg-[#0a0a0a] flex flex-col text-white overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-0 bg-gray-50 flex flex-col text-gray-900 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       onKeyDown={onKeyDown}
       tabIndex={0}
       role="application"
@@ -221,19 +254,22 @@ export function ComicViewerPage() {
       <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
         <Link
           to="/"
-          className="p-2 text-white/70 hover:text-white rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center pointer-events-auto"
+          className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center pointer-events-auto"
           aria-label="Back to home"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        {user && comic.owner_id === user.id && comic.status === 'in_progress' && (
+        {user &&
+          comic.owner_id === user.id &&
+          comic.status === 'in_progress' &&
+          comic.mode === 'collab' && (
           <button
             type="button"
             onClick={handleEndComic}
             disabled={ending}
-            className="min-h-[36px] px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors pointer-events-auto disabled:opacity-50"
+            className="min-h-[36px] px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors pointer-events-auto disabled:opacity-50"
           >
             End Comic
           </button>
@@ -251,18 +287,17 @@ export function ComicViewerPage() {
         {currentFrame ? (
           <FrameContent frame={currentFrame} />
         ) : (
-          <p className="text-white/60">No frames</p>
+          <p className="text-gray-500">No frames</p>
         )}
       </div>
 
-      {/* Nav arrows — inset from edges to avoid overlapping frame content */}
       {frames.length > 0 && (
         <>
           <button
             type="button"
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-30 disabled:pointer-events-none text-white transition-colors"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             aria-label="Previous frame"
           >
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,7 +308,7 @@ export function ComicViewerPage() {
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-30 disabled:pointer-events-none text-white transition-colors"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             aria-label="Next frame"
           >
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,10 +318,9 @@ export function ComicViewerPage() {
         </>
       )}
 
-      {/* Frame indicator */}
       {frames.length > 0 && (
         <div className="shrink-0 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-center gap-2">
-          <span className="text-sm text-white/70 tabular-nums">
+          <span className="text-sm text-gray-600 tabular-nums">
             {currentIndex + 1} / {frames.length}
           </span>
         </div>

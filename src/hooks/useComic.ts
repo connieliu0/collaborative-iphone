@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-// TODO — Schema: comics table also has: mode ('solo'|'collab'), current_turn_user_id (uuid), turn_order (uuid[]), max_frames (int)
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export interface ComicRow {
   id: string
   slug: string
@@ -47,11 +48,17 @@ export function useComic(id: string | undefined): UseComicResult {
     setError(null)
 
     try {
-      const { data: comicData, error: comicError } = await supabase
+      let query = supabase
         .from('comics')
         .select('id, slug, title, owner_id, status, created_at, mode, current_turn_user_id, turn_order, max_frames')
-        .or(`id.eq.${comicId},slug.eq.${comicId}`)
-        .maybeSingle()
+
+      if (UUID_RE.test(comicId)) {
+        query = query.or(`id.eq.${comicId},slug.eq.${comicId}`)
+      } else {
+        query = query.eq('slug', comicId)
+      }
+
+      const { data: comicData, error: comicError } = await query.maybeSingle()
 
       if (comicError) {
         setError(comicError.message)

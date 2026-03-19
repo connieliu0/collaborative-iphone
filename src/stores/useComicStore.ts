@@ -7,6 +7,8 @@ export interface OverlayPosition {
   y: number // percentage 0–100 relative to image height
 }
 
+export type FontFamilyId = 'Arial' | 'Arial Narrow' | 'News Cycle'
+
 export interface ComicFrame {
   id: string
   imageFile: File | null
@@ -17,13 +19,14 @@ export interface ComicFrame {
   textMode: TextMode
   fontSize: number
   fontColor: string
+  fontFamily: FontFamilyId
 }
 
 const MAX_FRAMES = 12
 
-const defaultOverlayPosition: OverlayPosition = { x: 50, y: 50 }
+const defaultOverlayPosition: OverlayPosition = { x: 50, y: 90 }
 
-function createFrame(file: File): ComicFrame {
+function createFrame(file: File, fontFamily: FontFamilyId): ComicFrame {
   return {
     id: crypto.randomUUID(),
     imageFile: file,
@@ -34,36 +37,77 @@ function createFrame(file: File): ComicFrame {
     textMode: 'caption',
     fontSize: 18,
     fontColor: '#ffffff',
+    fontFamily,
+  }
+}
+
+export function createEmptyFrame(fontFamily: FontFamilyId = 'News Cycle'): ComicFrame {
+  return {
+    id: crypto.randomUUID(),
+    imageFile: null,
+    imageUrl: '',
+    caption: '',
+    overlayText: '',
+    overlayPosition: { ...defaultOverlayPosition },
+    textMode: 'caption',
+    fontSize: 18,
+    fontColor: '#ffffff',
+    fontFamily,
   }
 }
 
 interface ComicState {
   frames: ComicFrame[]
   addFrames: (files: File[]) => void
+  addEmptyFrame: () => string | null
+  setFrames: (frames: ComicFrame[]) => void
   removeFrame: (id: string) => void
   updateFrame: (id: string, patch: Partial<ComicFrame>) => void
   reorderFrames: (newOrder: ComicFrame[]) => void
   clearComic: () => void
+  publishedSlug: string | null
+  publishedComicId: string | null
+  setPublishedComic: (args: { slug: string; comicId: string }) => void
 }
 
 export const useComicStore = create<ComicState>((set) => ({
   frames: [],
+  publishedSlug: null,
+  publishedComicId: null,
 
   addFrames: (files: File[]) => {
     set((state) => {
       const remaining = MAX_FRAMES - state.frames.length
       if (remaining <= 0) return state
+      // Inherit the currently selected font so new uploads keep the user's choice.
+      const currentFontFamily: FontFamilyId = state.frames[0]?.fontFamily ?? 'News Cycle'
       const toAdd = files.slice(0, remaining)
-      const newFrames = toAdd.map(createFrame)
+      const newFrames = toAdd.map((file) => createFrame(file, currentFontFamily))
       return { frames: [...state.frames, ...newFrames] }
     })
+  },
+
+  addEmptyFrame: () => {
+    let createdId: string | null = null
+    set((state) => {
+      if (state.frames.length >= MAX_FRAMES) return state
+      const currentFontFamily: FontFamilyId = state.frames[0]?.fontFamily ?? 'News Cycle'
+      const frame = createEmptyFrame(currentFontFamily)
+      createdId = frame.id
+      return { frames: [...state.frames, frame] }
+    })
+    return createdId
+  },
+
+  setFrames: (frames: ComicFrame[]) => {
+    set({ frames })
   },
 
   removeFrame: (id: string) => {
     set((state) => {
       const frame = state.frames.find((f) => f.id === id)
-      if (frame?.imageUrl) {
-        URL.revokeObjectURL(frame.imageUrl) // release object URL to avoid memory leaks
+      if (frame?.imageUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(frame.imageUrl)
       }
       return { frames: state.frames.filter((f) => f.id !== id) }
     })
@@ -84,9 +128,20 @@ export const useComicStore = create<ComicState>((set) => ({
   clearComic: () => {
     set((state) => {
       state.frames.forEach((f) => {
-        if (f.imageUrl) URL.revokeObjectURL(f.imageUrl) // release every frame's object URL
+        if (f.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(f.imageUrl)
       })
-      return { frames: [] }
+      return {
+        frames: [],
+        publishedSlug: null,
+        publishedComicId: null,
+      }
+    })
+  },
+
+  setPublishedComic: ({ slug, comicId }) => {
+    set({
+      publishedSlug: slug,
+      publishedComicId: comicId,
     })
   },
 }))

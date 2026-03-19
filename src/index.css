@@ -1,3 +1,4 @@
+/* Theme: semantic colors come from tailwind.config.js. Component classes below use them. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +8,34 @@
     @apply antialiased;
   }
   body {
-    @apply bg-black text-white font-sans min-h-[100dvh] overflow-x-hidden;
+    @apply bg-page text-primary font-sans min-h-[100dvh] overflow-x-hidden;
+  }
+}
+
+/* Semantic component classes — theme lives in tailwind.config.js colors */
+@layer components {
+  .btn-primary {
+    @apply font-sans antialiased flex flex-col items-center justify-center gap-0 shrink-0 p-2 rounded bg-[radial-gradient(ellipse_50%_50%_at_50%_50%_in_oklab,oklab(81.9%_0_0)_0%,transparent_100%)] text-[16px] leading-5 text-black min-w-0 w-fit h-fit transition-[filter] hover:brightness-150 focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply px-1 py-1 border border-border-strong text-primary font-medium text-sm hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center;
+  }
+  .input {
+    @apply w-full px-3 py-2.5 rounded-lg border border-border-strong bg-surface text-primary placeholder-muted text-sm focus:outline-none focus:ring-2 focus:ring-muted focus:border-transparent;
+  }
+  .card {
+    @apply border border-border rounded-xl bg-surface;
+  }
+  .tab {
+    @apply flex-1 min-h-[44px] rounded-md text-sm font-medium transition-colors;
+  }
+  .tab-selected {
+    @apply bg-primary text-on-primary;
+  }
+  .tab-default {
+    @apply text-muted hover:bg-gray-100;
+  }
+  .link-muted {
+    @apply text-muted hover:text-primary underline underline-offset-2;
   }
 }

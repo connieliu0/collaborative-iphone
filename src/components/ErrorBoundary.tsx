@@ -30,11 +30,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[40vh] px-4 text-center">
-          <p className="text-white/90 font-medium mb-4">Something went wrong</p>
+          <p className="text-gray-900 font-medium mb-4">Something went wrong</p>
           <button
             type="button"
             onClick={() => window.location.reload()}
-            className="min-h-[44px] px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors"
+            className="min-h-[44px] px-5 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors"
           >
             Reload
           </button>

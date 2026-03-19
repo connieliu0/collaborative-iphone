@@ -1,24 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useComicStore } from '../stores/useComicStore'
-import { useAuth } from '../hooks/useAuth'
-import { useAuthModal } from '../contexts/AuthModalContext'
-import { publishComic, type PublishOptions } from '../lib/publish'
 import { FrameContent, type FrameDisplay } from './ComicViewerPage'
 
 const SWIPE_THRESHOLD_PX = 50
-const PREVIEW_AUTH_MESSAGE = 'Create a free account to save your comic as a permanent link'
+
+const btnPrimary = 'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 
 export function PreviewPage() {
-  const navigate = useNavigate()
-  const { user } = useAuth()
-  const { openAuthModal } = useAuthModal()
   const { frames } = useComicStore()
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [publishing, setPublishing] = useState(false)
-  const [publishError, setPublishError] = useState<string | null>(null)
-  const [publishMode, setPublishMode] = useState<'solo' | 'collab'>('solo')
-  const [maxFramesInput, setMaxFramesInput] = useState<string>('')
   const swipeStartRef = useRef<{ x: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -26,7 +17,9 @@ export function PreviewPage() {
     if (frames.length > 0) containerRef.current?.focus()
   }, [frames.length])
 
-  const displayFrames: FrameDisplay[] = frames.map((frame) => ({
+  const displayFrames: FrameDisplay[] = frames
+    .filter((frame) => frame.imageUrl)
+    .map((frame) => ({
     image_url: frame.imageUrl,
     caption: frame.caption,
     overlay_text: frame.overlayText,
@@ -34,29 +27,8 @@ export function PreviewPage() {
     overlay_y: frame.overlayPosition.y,
     font_size: frame.fontSize,
     font_color: frame.fontColor,
+    font_family: frame.fontFamily,
   }))
-
-  const handlePublish = useCallback(async () => {
-    if (!user) {
-      openAuthModal(PREVIEW_AUTH_MESSAGE)
-      return
-    }
-    setPublishError(null)
-    setPublishing(true)
-    const opts: PublishOptions = {
-      mode: publishMode,
-      maxFrames: publishMode === 'collab' && maxFramesInput.trim() !== ''
-        ? Math.min(24, Math.max(1, parseInt(maxFramesInput, 10) || 3))
-        : undefined,
-    }
-    const result = await publishComic(user.id, frames, opts)
-    setPublishing(false)
-    if ('error' in result) {
-      setPublishError(result.error)
-      return
-    }
-    navigate(`/publish?slug=${result.slug}`)
-  }, [user, frames, publishMode, maxFramesInput, openAuthModal, navigate])
 
   const goPrev = useCallback(() => {
     setCurrentIndex((i) => (i > 0 ? i - 1 : i))
@@ -101,21 +73,18 @@ export function PreviewPage() {
 
   if (frames.length === 0) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white">
         <Link
           to="/create"
-          className="absolute top-4 left-4 z-10 p-2 text-white/70 hover:text-white rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="absolute top-4 left-4 z-10 p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back to create"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <p className="text-white/80 text-center px-4 mb-4">No frames to preview</p>
-        <Link
-          to="/create"
-          className="min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90"
-        >
+        <p className="text-gray-300 text-center px-4 mb-4">No frames to preview</p>
+        <Link to="/create" className={btnPrimary + ' inline-flex items-center justify-center'}>
           Add Photos
         </Link>
       </div>
@@ -125,50 +94,47 @@ export function PreviewPage() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 bg-[#0a0a0a] flex flex-col text-white overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-0 bg-black flex flex-col text-white overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       onKeyDown={onKeyDown}
       tabIndex={0}
       role="application"
       aria-label="Comic preview"
     >
-      {/* Back button */}
-      <div className="absolute top-4 left-4 z-10">
+      <div className="absolute top-4 right-4 z-10">
         <Link
           to={frames.length > 0 ? `/edit?frame=${frames[0].id}` : '/create'}
-          className="p-2 text-white/70 hover:text-white rounded-full hover:bg-white/10 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="Back to edit"
+          className="p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          aria-label="Close preview"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </Link>
       </div>
 
-      {/* One frame, centered, max 640px; max height so caption stays visible */}
       <div
-        className="flex-1 flex flex-col items-center justify-center w-full max-w-[640px] mx-auto px-4 py-4 min-h-0"
+        className="flex-1 flex flex-col items-center justify-center w-full h-full px-0 py-0"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
         onPointerCancel={onPointerUp}
       >
         {currentFrame ? (
-          <div className="w-full max-h-[70vh] min-h-0 flex flex-col rounded-lg overflow-hidden">
-            <FrameContent frame={currentFrame} />
+          <div className="w-full h-full min-h-0 flex flex-col">
+            <FrameContent frame={currentFrame} showCaption={false} variant="preview" />
           </div>
         ) : (
-          <p className="text-white/60">No frames</p>
+          <p className="text-gray-500">No frames</p>
         )}
       </div>
 
-      {/* Nav arrows */}
       {displayFrames.length > 0 && (
         <>
           <button
             type="button"
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-30 disabled:pointer-events-none text-white transition-colors"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             aria-label="Previous frame"
           >
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,7 +145,7 @@ export function PreviewPage() {
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 disabled:opacity-30 disabled:pointer-events-none text-white transition-colors"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
             aria-label="Next frame"
           >
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,80 +155,7 @@ export function PreviewPage() {
         </>
       )}
 
-      {/* Frame indicator and CTA bar */}
-      <div className="shrink-0 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex flex-col items-center justify-center gap-3">
-        {displayFrames.length > 0 && (
-          <span className="text-sm text-white/70 tabular-nums">
-            {currentIndex + 1} / {displayFrames.length}
-          </span>
-        )}
-
-        {/* Publish controls */}
-        <div className="flex flex-col items-center gap-3 px-4 w-full max-w-md">
-          {user ? (
-            <>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-white/70">Publish as:</span>
-                <div className="flex rounded-lg bg-white/5 p-0.5 gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setPublishMode('solo')}
-                    className={`min-h-[36px] px-3 rounded-md text-sm font-medium transition-colors ${
-                      publishMode === 'solo' ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
-                    }`}
-                  >
-                    Solo
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPublishMode('collab')}
-                    className={`min-h-[36px] px-3 rounded-md text-sm font-medium transition-colors ${
-                      publishMode === 'collab' ? 'bg-white text-black' : 'text-white/80 hover:bg-white/10'
-                    }`}
-                  >
-                    Collab
-                  </button>
-                </div>
-                {publishMode === 'collab' && (
-                  <label className="flex items-center gap-2 text-sm text-white/70">
-                    Max frames
-                    <input
-                      type="number"
-                      min={1}
-                      max={24}
-                      value={maxFramesInput}
-                      onChange={(e) => setMaxFramesInput(e.target.value)}
-                      placeholder="24"
-                      className="w-14 px-2 py-1 rounded bg-white/10 border border-white/20 text-white text-sm"
-                    />
-                  </label>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={handlePublish}
-                disabled={publishing}
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {publishing ? 'Publishing...' : 'Save as Permalink'}
-              </button>
-              {publishError && (
-                <p className="text-sm text-red-400" role="alert">
-                  {publishError}
-                </p>
-              )}
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => openAuthModal(PREVIEW_AUTH_MESSAGE)}
-              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center px-6 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors"
-            >
-              Create Account to Save
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Bottom controls removed for fullscreen preview */}
     </div>
   )
 }

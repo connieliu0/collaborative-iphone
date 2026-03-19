@@ -119,14 +119,17 @@ export function PublishPage() {
     [comic, user, refetchComic]
   )
 
+  const btnPrimary = 'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
+  const btnSecondary = 'min-h-[44px] px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors'
+
   if (!slug) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-        <p className="text-white/80 mb-4">No comic to show. Create one first.</p>
+        <p className="text-gray-600 mb-4">No comic to show. Create one first.</p>
         <button
           type="button"
           onClick={() => navigate('/create')}
-          className="min-h-[44px] inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90"
+          className={btnPrimary + ' inline-flex items-center justify-center'}
         >
           Create comic
         </button>
@@ -136,10 +139,10 @@ export function PublishPage() {
 
   return (
     <div className="flex flex-col items-center min-h-[50vh] text-center px-4 pb-8">
-      <h1 className="text-xl font-semibold text-white mb-2">
+      <h1 className="text-xl font-semibold text-gray-900 mb-2">
         Your comic is live!
       </h1>
-      <p className="text-white/70 text-sm mb-6">
+      <p className="text-gray-600 text-sm mb-6">
         Share this link with anyone to view your comic.
       </p>
 
@@ -153,19 +156,19 @@ export function PublishPage() {
             type="text"
             readOnly
             value={shareUrl}
-            className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-mono truncate"
+            className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-mono truncate"
             aria-label="Shareable URL"
           />
           <div className="flex flex-col items-center gap-2">
             <button
               type="button"
               onClick={handleCopy}
-              className="min-h-[44px] px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors"
+              className={btnPrimary + ' inline-flex items-center justify-center'}
             >
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
             {copied && (
-              <p className="text-sm text-green-400" role="status">
+              <p className="text-sm text-green-600" role="status">
                 Copied!
               </p>
             )}
@@ -173,9 +176,9 @@ export function PublishPage() {
         </div>
 
         {isCollabOwner && (
-          <section className="text-left border border-white/10 rounded-lg p-4 bg-white/5">
-            <h2 className="text-sm font-medium text-white mb-2">Invite Collaborators</h2>
-            <p className="text-xs text-white/60 mb-3">
+          <section className="text-left border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <h2 className="text-sm font-medium text-gray-900 mb-2">Invite Collaborators</h2>
+            <p className="text-xs text-gray-500 mb-3">
               Add by username (max {MAX_COLLABORATORS}). They can add frames in turn.
             </p>
             <div className="flex gap-2 mb-3">
@@ -185,20 +188,20 @@ export function PublishPage() {
                 onChange={(e) => setInviteUsername(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCollaborator()}
                 placeholder="Username"
-                className="flex-1 min-h-[40px] px-3 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/40"
+                className="flex-1 min-h-[40px] px-3 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
                 aria-label="Collaborator username"
               />
               <button
                 type="button"
                 onClick={handleAddCollaborator}
                 disabled={savingInvites || (comic?.turn_order?.filter((id) => id !== comic?.owner_id).length ?? 0) >= MAX_COLLABORATORS}
-                className="min-h-[40px] px-4 rounded-lg bg-white/20 text-white text-sm font-medium hover:bg-white/30 disabled:opacity-50"
+                className="min-h-[40px] px-4 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50"
               >
                 Add
               </button>
             </div>
             {inviteError && (
-              <p className="text-sm text-red-400 mb-2" role="alert">
+              <p className="text-sm text-red-600 mb-2" role="alert">
                 {inviteError}
               </p>
             )}
@@ -206,14 +209,14 @@ export function PublishPage() {
               {collaboratorProfiles.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2 text-sm text-white"
+                  className="flex items-center justify-between rounded-lg bg-white border border-gray-200 px-3 py-2 text-sm text-gray-900"
                 >
                   <span>@{p.username}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveCollaborator(p.id)}
                     disabled={pendingRemoveId === p.id}
-                    className="text-white/60 hover:text-red-400 disabled:opacity-50"
+                    className="text-gray-500 hover:text-red-600 disabled:opacity-50"
                     aria-label={`Remove ${p.username}`}
                   >
                     Remove
@@ -221,7 +224,7 @@ export function PublishPage() {
                 </li>
               ))}
               {collaboratorIds.length > 0 && collaboratorProfiles.length < collaboratorIds.length && (
-                <li className="text-sm text-white/50">Loading…</li>
+                <li className="text-sm text-gray-500">Loading…</li>
               )}
             </ul>
           </section>
@@ -231,14 +234,14 @@ export function PublishPage() {
           <button
             type="button"
             onClick={handleViewComic}
-            className="min-h-[44px] px-5 py-2.5 rounded-lg bg-white/10 text-white font-medium text-sm hover:bg-white/20 transition-colors border border-white/20"
+            className={btnSecondary + ' inline-flex items-center justify-center'}
           >
             View Comic
           </button>
           <button
             type="button"
             onClick={handleCreateAnother}
-            className="min-h-[44px] px-5 py-2.5 rounded-lg bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors"
+            className={btnPrimary + ' inline-flex items-center justify-center'}
           >
             Create Another
           </button>
