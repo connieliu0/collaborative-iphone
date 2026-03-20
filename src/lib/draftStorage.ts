@@ -24,6 +24,7 @@ export interface DraftFrameStored extends DraftFrameMeta {
 
 export interface DraftPayloadStored {
   version: number
+  title?: string
   frames: DraftFrameStored[]
 }
 
@@ -34,6 +35,7 @@ export interface DraftFrameLegacy extends DraftFrameMeta {
 
 export interface DraftPayloadLegacy {
   version: number
+  title?: string
   frames: DraftFrameLegacy[]
 }
 

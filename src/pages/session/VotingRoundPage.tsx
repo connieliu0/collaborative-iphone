@@ -53,7 +53,7 @@ export function VotingRoundPage() {
     setMatchups(data.matchups)
     setVotes(data.votes)
     if (data.matchups.length > 0) setGenerated(true)
-  }, [session?.id, session])
+  }, [session])
 
   useEffect(() => {
     loadMatchups()
@@ -141,8 +141,10 @@ export function VotingRoundPage() {
 
   const allVotedCountForCurrent = currentMatchup ? currentVoteCounts.a + currentVoteCounts.b : 0
   const votingClosed = !!currentMatchup?.winner || allVotedOnCurrent || timeLeft <= 0
+  const currentMatchupId = currentMatchup?.id
+  const currentMatchupWinner = currentMatchup?.winner
 
-  const handleFinish = async () => {
+  const handleFinish = useCallback(async () => {
     if (!session || !user) return
     setAdvancing(true)
     const result = await buildFinalComic(session.id, user.id)
@@ -152,24 +154,24 @@ export function VotingRoundPage() {
     }
     await advanceRound(session.id, user.id, 'complete')
     setAdvancing(false)
-  }
+  }, [session, user])
 
   // Reset the local countdown whenever the active matchup changes.
   useEffect(() => {
-    if (!currentMatchup) return
-    if (currentMatchup.winner) {
+    if (!currentMatchupId) return
+    if (currentMatchupWinner) {
       startedAtRef.current = null
       setTimeLeft(0)
       return
     }
     startedAtRef.current = Date.now()
     setTimeLeft(VOTING_SECONDS)
-  }, [currentMatchup?.id, currentMatchup?.winner])
+  }, [currentMatchupId, currentMatchupWinner])
 
   // Tick the countdown locally for UI, and stop when everyone has voted.
   useEffect(() => {
-    if (!currentMatchup) return
-    if (currentMatchup.winner) return
+    if (!currentMatchupId) return
+    if (currentMatchupWinner) return
     if (allVotedOnCurrent) {
       setTimeLeft(0)
       return
@@ -185,23 +187,23 @@ export function VotingRoundPage() {
     }, 250)
 
     return () => window.clearInterval(interval)
-  }, [currentMatchup?.id, currentMatchup?.winner, allVotedOnCurrent])
+  }, [currentMatchupId, currentMatchupWinner, allVotedOnCurrent])
 
   // Host auto-tallies when the timer ends or when everyone has voted.
   useEffect(() => {
     if (!session?.id) return
     if (!isHost) return
-    if (!currentMatchup) return
-    if (currentMatchup.winner) return
+    if (!currentMatchupId) return
+    if (currentMatchupWinner) return
     if (!allVotedOnCurrent && timeLeft > 0) return
-    if (talliedMatchupsRef.current.has(currentMatchup.id)) return
+    if (talliedMatchupsRef.current.has(currentMatchupId)) return
 
-    talliedMatchupsRef.current.add(currentMatchup.id)
+    talliedMatchupsRef.current.add(currentMatchupId)
     setTallying(true)
 
     void (async () => {
       try {
-        await tallyMatchup(currentMatchup.id, session.id)
+        await tallyMatchup(currentMatchupId, session.id)
         await loadMatchups()
       } finally {
         setTallying(false)
@@ -210,8 +212,8 @@ export function VotingRoundPage() {
   }, [
     isHost,
     session?.id,
-    currentMatchup?.id,
-    currentMatchup?.winner,
+    currentMatchupId,
+    currentMatchupWinner,
     allVotedOnCurrent,
     timeLeft,
     loadMatchups,
@@ -224,7 +226,7 @@ export function VotingRoundPage() {
     if (finishingRef.current) return
     finishingRef.current = true
     void handleFinish()
-  }, [isHost, allMatchupsDone])
+  }, [isHost, allMatchupsDone, handleFinish])
 
   const previousWinner = useMemo(() => {
     if (activeMatchupIdx === 0) return null
@@ -403,13 +405,23 @@ export function VotingRoundPage() {
       )}
 
       {isHost && allVotedOnCurrent && activeMatchupIdx < matchups.length - 1 && (
-        <button type="button" onClick={handleNextMatchup} className={btnPrimary + ' w-full max-w-xs'}>
+        <button
+          type="button"
+          onClick={handleNextMatchup}
+          disabled={tallying}
+          className={btnPrimary + ' w-full max-w-xs'}
+        >
           Next Matchup →
         </button>
       )}
 
       {isHost && allVotedOnCurrent && activeMatchupIdx === matchups.length - 1 && !allMatchupsDone && (
-        <button type="button" onClick={handleNextMatchup} className={btnPrimary + ' w-full max-w-xs'}>
+        <button
+          type="button"
+          onClick={handleNextMatchup}
+          disabled={tallying}
+          className={btnPrimary + ' w-full max-w-xs'}
+        >
           Tally Final Matchup
         </button>
       )}

@@ -6,7 +6,6 @@ import { supabase } from '../../lib/supabase'
 import { advanceRound, submitPhrases, getSessionPhrases, type SessionPhraseRow } from '../../lib/session'
 
 const REQUIRED_PHRASES = 4
-const TIMER_SECONDS = 60
 
 const btnPrimary =
   'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
@@ -24,7 +23,6 @@ export function PhrasesRoundPage() {
   const [advancing, setAdvancing] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [advanceError, setAdvanceError] = useState<string | null>(null)
-  const [timeLeft, setTimeLeft] = useState(TIMER_SECONDS)
 
   const isHost = user && session && session.host_id === user.id
 
@@ -35,20 +33,6 @@ export function PhrasesRoundPage() {
       navigate(`/session/${code}/${next}`, { replace: true })
     }
   }, [session?.round, code, navigate, session])
-
-  useEffect(() => {
-    if (submitted) return
-    const interval = setInterval(() => {
-      setTimeLeft((t) => {
-        if (t <= 1) {
-          clearInterval(interval)
-          return 0
-        }
-        return t - 1
-      })
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [submitted])
 
   const loadPhrases = useCallback(async () => {
     if (!session) return
@@ -132,9 +116,6 @@ export function PhrasesRoundPage() {
   const submittedCount = submittedUsers.size
   const allSubmitted = submittedCount >= members.length
 
-  const minutes = Math.floor(timeLeft / 60)
-  const seconds = timeLeft % 60
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -153,14 +134,8 @@ export function PhrasesRoundPage() {
 
   return (
     <div className="flex flex-col items-center px-4 pb-8 max-w-xl mx-auto">
-      <h1 className="text-lg font-semibold text-gray-900 mt-4 mb-1">Round 2: Phrases</h1>
-      <p className="text-sm text-gray-500 mb-2">Write {REQUIRED_PHRASES} short captions</p>
-
-      <div
-        className={`text-2xl font-mono font-bold tabular-nums mb-4 ${timeLeft <= 10 ? 'text-red-600' : 'text-gray-900'}`}
-      >
-        {minutes}:{seconds.toString().padStart(2, '0')}
-      </div>
+      <h1 className="text-lg font-semibold text-gray-900 mt-4 mb-1">What are phrases that have sparked something in you as of late?</h1>
+      <p className="text-sm text-gray-500 mb-2">Write {REQUIRED_PHRASES} short phrases</p>
 
       <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
         <div

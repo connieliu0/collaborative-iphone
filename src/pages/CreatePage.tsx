@@ -422,7 +422,7 @@ export function CreatePage() {
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
   const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame } = useComicStore()
-  const { publishedComicId, setPublishedComic } = useComicStore()
+  const { comicTitle, setComicTitle, publishedComicId, setPublishedComic } = useComicStore()
   const hasFrames = frames.length > 0
 
   useEffect(() => {
@@ -542,8 +542,8 @@ export function CreatePage() {
     setPublishing(true)
     const publishFrames = frames.filter((frame) => frame.imageUrl)
     const result = publishedComicId
-      ? await updateComic(publishedComicId, user.id, publishFrames)
-      : await publishComic(user.id, publishFrames, { mode: 'solo' })
+      ? await updateComic(publishedComicId, user.id, publishFrames, comicTitle)
+      : await publishComic(user.id, publishFrames, { mode: 'solo', title: comicTitle })
     setPublishing(false)
     if ('error' in result) {
       setPublishError(result.error)
@@ -591,6 +591,55 @@ export function CreatePage() {
         aria-label="Select photos for comic"
       />
 
+      <ComicFlowHeader
+        variant="create"
+        onPublish={handlePublish}
+        publishing={publishing}
+        title={comicTitle}
+        onTitleChange={setComicTitle}
+        hideActions={frames.length === 0}
+        leftContent={
+          hasFrames ? (
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-sm text-gray-600 shrink-0">Font</span>
+              <div className="relative w-[160px] sm:w-[180px] min-h-[32px]">
+                <span
+                  className="pointer-events-none absolute inset-0 flex items-center rounded border border-gray-300 bg-white px-2 text-sm text-gray-900 whitespace-nowrap"
+                  style={{
+                    fontFamily:
+                      FONT_FAMILY_OPTIONS.find((f) => f.id === (frames[0]?.fontFamily ?? 'News Cycle'))
+                        ?.fontFamily ?? '"News Cycle", sans-serif',
+                  }}
+                  aria-hidden
+                >
+                  {FONT_FAMILY_OPTIONS.find((f) => f.id === (frames[0]?.fontFamily ?? 'News Cycle'))
+                    ?.label ?? 'News Cycle'}
+                </span>
+                <select
+                  value={frames[0]?.fontFamily ?? 'News Cycle'}
+                  onChange={(e) => {
+                    const fontFamily = e.target.value as FontFamilyId
+                    frames.forEach((frame) => {
+                      updateFrame(frame.id, { fontFamily })
+                    })
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer rounded border-0 bg-transparent opacity-0"
+                  aria-label="Font style"
+                >
+                  {FONT_FAMILY_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : undefined
+        }
+        previewDisabled={frames.length === 0}
+        publishDisabled={frames.length === 0}
+      />
+
       {!hasFrames ? (
         <>
           <button
@@ -606,54 +655,6 @@ export function CreatePage() {
         </>
       ) : (
         <>
-          <ComicFlowHeader
-            variant="create"
-            onPublish={handlePublish}
-            publishing={publishing}
-            leftContent={
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-sm text-gray-600 shrink-0">Font</span>
-                <div className="relative w-[160px] sm:w-[180px] min-h-[32px]">
-                  <span
-                    className="pointer-events-none absolute inset-0 flex items-center rounded border border-gray-300 bg-white px-2 text-sm text-gray-900 whitespace-nowrap"
-                    style={{
-                      fontFamily:
-                        FONT_FAMILY_OPTIONS.find(
-                          (f) => f.id === (frames[0]?.fontFamily ?? 'News Cycle')
-                        )?.fontFamily ?? '"News Cycle", sans-serif',
-                    }}
-                    aria-hidden
-                  >
-                    {
-                      FONT_FAMILY_OPTIONS.find(
-                        (f) => f.id === (frames[0]?.fontFamily ?? 'News Cycle')
-                      )?.label ?? 'News Cycle'
-                    }
-                  </span>
-                  <select
-                    value={frames[0]?.fontFamily ?? 'News Cycle'}
-                    onChange={(e) => {
-                      const fontFamily = e.target.value as FontFamilyId
-                      frames.forEach((frame) => {
-                        updateFrame(frame.id, { fontFamily })
-                      })
-                    }}
-                    className="absolute inset-0 h-full w-full cursor-pointer rounded border-0 bg-transparent opacity-0"
-                    aria-label="Font style"
-                  >
-                    {FONT_FAMILY_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            }
-            previewDisabled={frames.length === 0}
-            publishDisabled={frames.length === 0}
-          />
-
           {frames.length > 0 && (
             <>
               <div className="flex items-center justify-end gap-3 mb-3">

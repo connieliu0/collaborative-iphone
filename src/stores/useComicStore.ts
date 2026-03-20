@@ -58,6 +58,8 @@ export function createEmptyFrame(fontFamily: FontFamilyId = 'News Cycle'): Comic
 
 interface ComicState {
   frames: ComicFrame[]
+  comicTitle: string
+  setComicTitle: (title: string) => void
   addFrames: (files: File[]) => void
   addEmptyFrame: () => string | null
   setFrames: (frames: ComicFrame[]) => void
@@ -72,8 +74,13 @@ interface ComicState {
 
 export const useComicStore = create<ComicState>((set) => ({
   frames: [],
+  comicTitle: 'Untitled',
   publishedSlug: null,
   publishedComicId: null,
+
+  setComicTitle: (title: string) => {
+    set({ comicTitle: title })
+  },
 
   addFrames: (files: File[]) => {
     set((state) => {
@@ -132,6 +139,7 @@ export const useComicStore = create<ComicState>((set) => ({
       })
       return {
         frames: [],
+        comicTitle: 'Untitled',
         publishedSlug: null,
         publishedComicId: null,
       }

@@ -42,7 +42,10 @@ async function frameToBlob(frame: ComicFrame): Promise<Blob | null> {
   return null
 }
 
-async function framesToDraftPayload(frames: ComicFrame[]): Promise<DraftPayloadStored | null> {
+async function framesToDraftPayload(
+  frames: ComicFrame[],
+  title: string
+): Promise<DraftPayloadStored | null> {
   const draftFrames: DraftFrameStored[] = []
   for (const frame of frames) {
     const imageBlob = await frameToBlob(frame)
@@ -59,7 +62,7 @@ async function framesToDraftPayload(frames: ComicFrame[]): Promise<DraftPayloadS
       imageBlob,
     })
   }
-  return { version: DRAFT_VERSION, frames: draftFrames }
+  return { version: DRAFT_VERSION, title, frames: draftFrames }
 }
 
 /**
@@ -67,7 +70,7 @@ async function framesToDraftPayload(frames: ComicFrame[]): Promise<DraftPayloadS
  * persist frame images (as Blobs) + metadata to IndexedDB whenever frames change.
  */
 export function useDraftPersistence(user: unknown, authLoading: boolean): void {
-  const { frames, setFrames } = useComicStore()
+  const { frames, comicTitle, setFrames, setComicTitle } = useComicStore()
   const hasLoadedDraft = useRef(false)
   /** True after we've had at least one frame this session (so we can tell "user cleared all" from "just refreshed". */
   const hadFramesThisSession = useRef(false)
@@ -119,12 +122,13 @@ export function useDraftPersistence(user: unknown, authLoading: boolean): void {
       hadFramesThisSession.current = true
       const restored = draft.frames.map(storedToFrame)
       setFrames(restored)
+      setComicTitle(draft.title?.trim() || 'Untitled')
     })()
 
     return () => {
       cancelled = true
     }
-  }, [authLoading, user, setFrames])
+  }, [authLoading, user, setFrames, setComicTitle])
 
   // Persist draft when no user and frames exist; only clear when user had frames and then removed all (not on refresh)
   useEffect(() => {
@@ -140,12 +144,12 @@ export function useDraftPersistence(user: unknown, authLoading: boolean): void {
       return
     }
     let cancelled = false
-    framesToDraftPayload(frames).then(async (payload) => {
+    framesToDraftPayload(frames, comicTitle).then(async (payload) => {
       if (cancelled || !payload) return
       await setDraft(payload)
     })
     return () => {
       cancelled = true
     }
-  }, [user, frames])
+  }, [user, frames, comicTitle])
 }

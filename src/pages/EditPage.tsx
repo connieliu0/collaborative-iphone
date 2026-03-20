@@ -32,7 +32,7 @@ export function EditPage() {
 
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
-  const { frames, addFrames, updateFrame, publishedComicId, setPublishedComic } = useComicStore()
+  const { frames, comicTitle, setComicTitle, addFrames, updateFrame, publishedComicId, setPublishedComic } = useComicStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const colorInputRef = useRef<HTMLInputElement>(null)
   const [processingFiles, setProcessingFiles] = useState(false)
@@ -196,8 +196,8 @@ export function EditPage() {
     setPublishing(true)
     const publishFrames = frames.filter((f) => f.imageUrl)
     const result = publishedComicId
-      ? await updateComic(publishedComicId, user.id, publishFrames)
-      : await publishComic(user.id, publishFrames, { mode: 'solo' })
+      ? await updateComic(publishedComicId, user.id, publishFrames, comicTitle)
+      : await publishComic(user.id, publishFrames, { mode: 'solo', title: comicTitle })
     setPublishing(false)
     if ('error' in result) {
       setPublishError(result.error)
@@ -265,6 +265,8 @@ export function EditPage() {
         variant="edit"
         onPublish={handlePublish}
         publishing={publishing}
+        title={comicTitle}
+        onTitleChange={setComicTitle}
       />
       {publishError && (
         <p className="text-sm text-red-600 mb-2" role="alert">

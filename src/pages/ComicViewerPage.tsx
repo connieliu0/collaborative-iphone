@@ -61,10 +61,13 @@ export function FrameContent({
   frame,
   showCaption = true,
   variant = 'default',
+  overlayCaption = true,
 }: {
   frame: FrameDisplay
   showCaption?: boolean
   variant?: 'default' | 'preview'
+  /** When false, caption appears only in the bottom strip (if showCaption), not overlaid on the image. */
+  overlayCaption?: boolean
 }) {
   const isPreview = variant === 'preview'
   const resolvedFontFamily =
@@ -94,7 +97,7 @@ export function FrameContent({
           draggable={false}
         />
         {/* Render caption as an overlay on the image (we removed the dedicated overlay_text column). */}
-        {frame.caption.trim() ? (
+        {overlayCaption && frame.caption.trim() ? (
           <div
             role="img"
             aria-label="Overlay text"

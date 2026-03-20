@@ -169,7 +169,7 @@ export function ImagesRoundPage() {
           </p>
         </div>
       )}
-      <h1 className="text-lg font-semibold text-gray-900 mt-4 mb-1">Round 1: Images</h1>
+      <h1 className="text-lg font-semibold text-gray-900 mt-4 mb-1">What photos have you taken that resonate recently?</h1>
       <p className="text-sm text-gray-500 mb-4">Upload {REQUIRED_IMAGES} images</p>
 
       <div className="w-full bg-gray-100 rounded-full h-2 mb-6">

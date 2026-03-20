@@ -48,6 +48,7 @@ export type PublishResult = { slug: string; comicId: string } | { error: string 
 
 export interface PublishOptions {
   mode: 'solo' | 'collab'
+  title?: string
   /** Collaborator user IDs (max 5). Turn order is [owner, ...collaboratorIds]. */
   collaboratorIds?: string[]
   /** For collab: total frame cap. Default turn_order.length * 3, max 24. */
@@ -64,6 +65,7 @@ export async function publishComic(
   }
 
   const slug = crypto.randomUUID().slice(0, 8)
+  const title = options.title?.trim() || 'Untitled'
   const isCollab = options.mode === 'collab'
   const collaboratorIds = options.collaboratorIds ?? []
   const turnOrder = [userId, ...collaboratorIds]
@@ -78,7 +80,7 @@ export async function publishComic(
   const insertPayload: Record<string, unknown> = {
     slug,
     owner_id: userId,
-    title: 'Untitled',
+    title,
     status: isCollab ? 'in_progress' : 'complete',
     mode: options.mode,
   }
@@ -178,7 +180,8 @@ export async function publishComic(
 export async function updateComic(
   comicId: string,
   userId: string,
-  frames: ComicFrame[]
+  frames: ComicFrame[],
+  title?: string
 ): Promise<PublishResult> {
   if (frames.length === 0) return { error: 'No frames to publish' }
 
@@ -273,6 +276,7 @@ export async function updateComic(
   const { error: updateComicError } = await supabase
     .from('comics')
     .update({
+      title: title?.trim() || 'Untitled',
       status: 'complete',
       current_turn_user_id: null,
       mode: 'solo',
