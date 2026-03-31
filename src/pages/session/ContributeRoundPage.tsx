@@ -288,14 +288,14 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
           </div>
         )}
 
-        <div className="flex flex-col gap-6 items-center">
+        <div className="flex flex-col gap-2items-center">
           <p className="text-xl sm:text-2xl text-center text-[#808080] w-full" style={narrowFont}>
             PART 3: WORD + IMAGE
           </p>
           <p className="text-justify w-full leading-tight sm:leading-9" style={narrowFont}>
-            <span className="text-[24] sm:text-[40px]">What do you want to </span>
-            <span className="italic text-[44px] sm:text-[56px]">express</span>
-            <span className="text-[24] sm:text-[40px]">?</span>
+            <span className="text-[28px] sm:text-[40px]">What do you want to </span>
+            <span className="italic text-[36px] sm:text-[56px]">express</span>
+            <span className="text-[28px] sm:text-[40px]">?</span>
           </p>
         </div>
 
@@ -371,14 +371,14 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
           className="hidden"
         />
 
-        <div className="flex flex-col gap-6 items-center">
+        <div className="flex flex-col gap-2items-center">
           <p className="text-xl sm:text-2xl text-center text-[#808080] w-full" style={narrowFont}>
             PART 1: IMAGE
           </p>
           <p className="text-justify w-full leading-tight sm:leading-9" style={narrowFont}>
-            <span className="text-[24] sm:text-[40px]">Upload an </span>
-            <span className="italic text-[44px] sm:text-[56px]">image</span>
-            <span className="text-[24] sm:text-[40px]"> that resonated this week</span>
+            <span className="text-[28px] sm:text-[40px]">Upload an </span>
+            <span className="italic text-[36px] sm:text-[56px]">image</span>
+            <span className="text-[28px] sm:text-[40px]"> that resonated this week</span>
           </p>
         </div>
 
@@ -441,14 +441,14 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
         </div>
       )}
 
-      <div className="flex flex-col gap-6 items-center">
+      <div className="flex flex-col gap-2items-center">
         <p className="text-xl sm:text-2xl text-center text-[#808080] w-full" style={narrowFont}>
           PART 2: WORD
         </p>
         <p className="text-justify w-full leading-tight sm:leading-9" style={narrowFont}>
-          <span className="text-[24] sm:text-[40px]">Upload a </span>
-          <span className="italic text-[44px] sm:text-[56px]">phrase</span>
-          <span className="text-[24] sm:text-[40px]"> that slipped through your mind this week</span>
+          <span className="text-[28px] sm:text-[40px]">Upload a </span>
+          <span className="italic text-[36px] sm:text-[56px]">phrase</span>
+          <span className="text-[28px] sm:text-[40px]"> that slipped through your mind this week</span>
         </p>
       </div>
 
