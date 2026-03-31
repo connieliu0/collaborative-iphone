@@ -71,6 +71,11 @@ export function App() {
           <Route path="/session/:code/contribute" element={<ContributeRoundPage />} />
           <Route path="/session/:code/pair" element={<PairRoundPage />} />
           <Route path="/session/:code/admin" element={<AdminPage />} />
+
+          {/* Session-agnostic UI test routes */}
+          <Route path="/ui-test/session/contribute/1" element={<ContributeRoundPage mockRoundNumber={1} />} />
+          <Route path="/ui-test/session/contribute/2" element={<ContributeRoundPage mockRoundNumber={2} />} />
+          <Route path="/ui-test/session/contribute/3" element={<ContributeRoundPage mockRoundNumber={3} />} />
         </Routes>
       </Layout>
     </AuthModalProvider>
