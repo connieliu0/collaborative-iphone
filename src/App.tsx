@@ -17,6 +17,9 @@ import { ComposeRoundPage } from './pages/session/ComposeRoundPage'
 import { VotingRoundPage } from './pages/session/VotingRoundPage'
 import { ResultsPage } from './pages/session/ResultsPage'
 import { VisualizerPage } from './pages/session/VisualizerPage'
+import { ContributeRoundPage } from './pages/session/ContributeRoundPage'
+import { PairRoundPage } from './pages/session/PairRoundPage'
+import { AdminPage } from './pages/session/AdminPage'
 
 export function App() {
   return (
@@ -63,6 +66,11 @@ export function App() {
           {/* Back-compat: some clients may navigate to /complete instead of /results */}
           <Route path="/session/:code/complete" element={<ResultsPage />} />
           <Route path="/session/:code/visualizer" element={<VisualizerPage />} />
+
+          {/* Performance Mode */}
+          <Route path="/session/:code/contribute" element={<ContributeRoundPage />} />
+          <Route path="/session/:code/pair" element={<PairRoundPage />} />
+          <Route path="/session/:code/admin" element={<AdminPage />} />
         </Routes>
       </Layout>
     </AuthModalProvider>

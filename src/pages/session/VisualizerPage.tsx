@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { fetchSession, getSessionImages, getSessionPhrases, type SessionImageRow, type SessionPhraseRow, type SessionRow } from '../../lib/session'
+import { fetchSession, getSessionImages, getSessionPhrases, getSessionPairings, type SessionImageRow, type SessionPhraseRow, type SessionPairingRow, type SessionRow } from '../../lib/session'
 
 function seededRandom(id: string, salt: number): number {
   let hash = salt
@@ -57,6 +57,7 @@ export function VisualizerPage() {
   const [session, setSession] = useState<SessionRow | null>(null)
   const [images, setImages] = useState<SessionImageRow[]>([])
   const [phrases, setPhrases] = useState<SessionPhraseRow[]>([])
+  const [featuredPairing, setFeaturedPairing] = useState<SessionPairingRow | null>(null)
   const [loading, setLoading] = useState(true)
 
   const initialImageIds = useRef<Set<string> | null>(null)
@@ -83,6 +84,15 @@ export function VisualizerPage() {
   }, [session?.id, session])
 
   useEffect(() => { loadContent() }, [loadContent])
+
+  const loadPairings = useCallback(async () => {
+    if (!session) return
+    const all = await getSessionPairings(session.id)
+    const featured = all.filter((p) => p.featured)
+    setFeaturedPairing(featured.length > 0 ? featured[featured.length - 1] : null)
+  }, [session?.id, session])
+
+  useEffect(() => { loadPairings() }, [loadPairings])
 
   useEffect(() => {
     if (initialImageIds.current === null && images.length > 0) {
@@ -118,10 +128,20 @@ export function VisualizerPage() {
           setSession((prev) => prev ? { ...prev, ...(payload.new as SessionRow) } : prev)
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'session_pairings', filter: `session_id=eq.${session.id}` },
+        () => loadPairings()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'session_pairings', filter: `session_id=eq.${session.id}` },
+        () => loadPairings()
+      )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [session?.id, loadContent])
+  }, [session?.id, loadContent, loadPairings])
 
   if (loading) {
     return (
@@ -139,18 +159,31 @@ export function VisualizerPage() {
     )
   }
 
+  const contributeLabel =
+    session.round_number === 1
+      ? 'Round 1 of 3 — Image'
+      : session.round_number === 2
+        ? 'Round 2 of 3 — Phrase'
+        : 'Round 3 of 3 — Pair'
+
   const roundLabel =
     session.round === 'images'
       ? 'Uploading Images…'
       : session.round === 'phrases'
         ? 'Writing Phrases…'
         : session.round === 'compose'
-          ? 'Composing Comics…'
+          ? 'Composing…'
           : session.round === 'voting'
             ? 'Voting…'
             : session.round === 'complete'
               ? 'Complete!'
-              : 'Lobby'
+              : session.round === 'contribute'
+                ? contributeLabel
+                : session.round === 'present'
+                  ? 'Presenting'
+                  : 'Lobby'
+
+  const isPresenting = session.round === 'present'
 
   const initialImgCount = initialImageIds.current?.size ?? images.length
   const lastImageStartMs =
@@ -208,6 +241,43 @@ export function VisualizerPage() {
       </div>
 
       <div className="flex-1 min-h-0 relative overflow-hidden">
+        {isPresenting ? (
+          featuredPairing ? (
+            <div className="flex items-center justify-center h-full px-8">
+              <div className="relative max-w-[90vw] max-h-[85vh]">
+                <img
+                  src={featuredPairing.image_url}
+                  alt=""
+                  className="max-w-full max-h-[85vh] object-contain block"
+                  draggable={false}
+                />
+                {featuredPairing.phrase_text?.trim() && (
+                  <div
+                    className="absolute left-1/2 bottom-[6%] -translate-x-1/2 select-none pointer-events-none flex items-center justify-center w-[90%]"
+                  >
+                    <span
+                      className="text-xl font-bold text-white text-center whitespace-pre-wrap break-words leading-snug"
+                      style={{
+                        fontFamily: 'Arial, sans-serif',
+                        textShadow:
+                          '-2px -2px 0 rgba(0,0,0,0.85), -2px 0 0 rgba(0,0,0,0.85), -2px 2px 0 rgba(0,0,0,0.85), ' +
+                          '0 -2px 0 rgba(0,0,0,0.85), 0 2px 0 rgba(0,0,0,0.85), ' +
+                          '2px -2px 0 rgba(0,0,0,0.85), 2px 0 0 rgba(0,0,0,0.85), 2px 2px 0 rgba(0,0,0,0.85)',
+                      }}
+                    >
+                      {featuredPairing.phrase_text}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500 text-lg">Waiting for host to select a pairing…</p>
+            </div>
+          )
+        ) : (
+          <>
         {images.length === 0 && phrases.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-500 text-lg">Waiting for contributions…</p>
@@ -227,7 +297,7 @@ export function VisualizerPage() {
           return (
             <div
               key={img.id}
-              className="absolute w-56 h-56 sm:w-64 sm:h-64 rounded-lg overflow-hidden border border-gray-700 shadow-lg"
+              className="absolute w-56 h-56 sm:w-64 sm:h-64 overflow-hidden border border-gray-700 shadow-lg"
               style={{
                 left: `${x}%`,
                 top: `${y}%`,
@@ -253,7 +323,7 @@ export function VisualizerPage() {
           return (
             <span
               key={p.id}
-              className="absolute px-6 py-3 sm:px-7 sm:py-3.5 bg-white/10 backdrop-blur rounded-full text-xl sm:text-2xl font-medium text-white border border-white/20 whitespace-nowrap"
+              className="absolute px-6 py-3 sm:px-7 sm:py-3.5  text-xl sm:text-2xl font-medium text-white border border-white/20 whitespace-nowrap"
               style={{
                 left: `${x}%`,
                 top: `${y}%`,
@@ -269,6 +339,8 @@ export function VisualizerPage() {
             </span>
           )
         })}
+          </>
+        )}
       </div>
     </div>
   )

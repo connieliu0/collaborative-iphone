@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
-import { advanceRound } from '../../lib/session'
+import { advancePerformanceRound, advanceRound } from '../../lib/session'
 import { updateMyUsername } from '../../lib/profiles'
 
 const btnPrimary =
@@ -23,6 +23,7 @@ export function LobbyPage() {
   const [nameError, setNameError] = useState<string | null>(null)
 
   const isHost = user && session && session.host_id === user.id
+  const isPerformance = session?.session_type === 'performance'
   const me = user ? members.find((m) => m.user_id === user.id) ?? null : null
 
   useEffect(() => {
@@ -37,7 +38,10 @@ export function LobbyPage() {
   useEffect(() => {
     if (!session) return
     if (session.round !== 'lobby') {
-      const next = session.round === 'complete' ? 'results' : session.round
+      let next: string = session.round
+      if (session.round === 'complete') next = 'results'
+      else if (session.round === 'compose' && session.session_type === 'performance') next = 'pair'
+      else if (session.round === 'present') next = 'pair'
       navigate(`/session/${code}/${next}`, { replace: true })
     }
   }, [session?.round, code, navigate, session])
@@ -52,10 +56,16 @@ export function LobbyPage() {
     if (!session || !user) return
     setStartError(null)
     setStarting(true)
-    const result = await advanceRound(session.id, user.id, 'images')
+    const result = isPerformance
+      ? await advancePerformanceRound(session.id, user.id, session.round, session.round_number, session.sub_step)
+      : await advanceRound(session.id, user.id, 'images')
     setStarting(false)
     if ('error' in result && result.error) {
       setStartError(result.error)
+      return
+    }
+    if (isPerformance) {
+      navigate(`/session/${code}/contribute`, { replace: true })
       return
     }
     navigate(`/session/${code}/images`, { replace: true })
@@ -77,6 +87,49 @@ export function LobbyPage() {
         <button type="button" onClick={() => navigate('/')} className={btnPrimary}>
           Back to Home
         </button>
+      </div>
+    )
+  }
+
+  if (isPerformance) {
+    return (
+      <div
+        className="fixed inset-0 z-10 flex flex-col items-center justify-center"
+        style={{
+          background:
+            'radial-gradient(ellipse at center, #f7ff8c 0%, #fbffc6 50%, #ffffff 100%)',
+        }}
+      >
+        {starting && (
+          <div
+            className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center px-6"
+            aria-live="polite"
+          >
+            <div className="h-10 w-10 rounded-full border-2 border-gray-300 border-t-gray-800 animate-spin mb-4" />
+            <p className="text-sm font-medium text-gray-800">Starting performance…</p>
+          </div>
+        )}
+
+        <p className="text-[40px] leading-normal text-black" style={{ fontFamily: 'Arial Narrow, Arial, sans-serif' }}>
+          Joined session
+        </p>
+
+        {isHost && (
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={starting}
+            className={btnPrimary + ' mt-8 px-8'}
+          >
+            {starting ? 'Starting…' : 'Start Performance'}
+          </button>
+        )}
+
+        {startError && (
+          <p className="text-sm text-red-600 mt-3" role="alert">
+            {startError}
+          </p>
+        )}
       </div>
     )
   }
