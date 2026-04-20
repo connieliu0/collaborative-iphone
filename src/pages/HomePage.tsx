@@ -1,23 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAuthModal } from '../contexts/AuthModalContext'
-import { createSession, joinSession, getActivePerformanceSession, type SessionRow } from '../lib/session'
+import { createSession, joinSession } from '../lib/session'
 
 const btnPrimary =
   'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 const btnSecondary =
   'min-h-[44px] px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-50'
-
-function routeForSession(code: string, round: string): string {
-  switch (round) {
-    case 'contribute': return `/session/${code}/contribute`
-    case 'compose': return `/session/${code}/pair`
-    case 'present': return `/session/${code}/pair`
-    case 'complete': return `/session/${code}/results`
-    default: return `/session/${code}`
-  }
-}
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -26,55 +16,7 @@ export function HomePage() {
   const [joinCode, setJoinCode] = useState('')
   const [showJoin, setShowJoin] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [autoJoinLoading, setAutoJoinLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const autoJoinAttempted = useRef(false)
-
-  useEffect(() => {
-    if (autoJoinAttempted.current) return
-    autoJoinAttempted.current = true
-
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('host') === '1') {
-      setAutoJoinLoading(false)
-      return
-    }
-
-    ;(async () => {
-      const activeSession: SessionRow | null = await getActivePerformanceSession()
-      if (!activeSession) {
-        setAutoJoinLoading(false)
-        return
-      }
-
-      let currentUser = user
-      if (!currentUser) {
-        const result = await signInAnonymously()
-        if (result.error || !result.user) {
-          setAutoJoinLoading(false)
-          return
-        }
-        currentUser = result.user
-      }
-
-      const joinResult = await joinSession(activeSession.code, currentUser.id)
-      if ('error' in joinResult) {
-        setAutoJoinLoading(false)
-        return
-      }
-
-      navigate(routeForSession(activeSession.code, activeSession.round), { replace: true })
-    })()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (autoJoinLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh]">
-        <div className="h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin mb-3" />
-        <p className="text-sm text-gray-500">Joining session…</p>
-      </div>
-    )
-  }
 
   const handleHost = async (sessionType: 'collab' | 'performance' = 'collab') => {
     let hostUser = user

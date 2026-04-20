@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
 import { fetchSession, getSessionImages, getSessionPhrases, getSessionPairings, type SessionImageRow, type SessionPhraseRow, type SessionPairingRow, type SessionRow } from '../../lib/session'
 
 function seededRandom(id: string, salt: number): number {
@@ -64,9 +63,17 @@ export function VisualizerPage() {
   const initialPhraseIds = useRef<Set<string> | null>(null)
 
   const loadSession = useCallback(async () => {
-    if (!code) return
+    if (!code) {
+      setSession(null)
+      setLoading(false)
+      return
+    }
     const result = await fetchSession(code)
-    if ('error' in result) return
+    if ('error' in result) {
+      setSession(null)
+      setLoading(false)
+      return
+    }
     setSession(result.session)
     setLoading(false)
   }, [code])
@@ -105,43 +112,6 @@ export function VisualizerPage() {
       initialPhraseIds.current = new Set(phrases.map((p) => p.id))
     }
   }, [phrases])
-
-  useEffect(() => {
-    if (!session?.id) return
-
-    const channel = supabase
-      .channel(`visualizer-${session.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'session_images', filter: `session_id=eq.${session.id}` },
-        () => loadContent()
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'session_phrases', filter: `session_id=eq.${session.id}` },
-        () => loadContent()
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'sessions', filter: `id=eq.${session.id}` },
-        (payload) => {
-          setSession((prev) => prev ? { ...prev, ...(payload.new as SessionRow) } : prev)
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'session_pairings', filter: `session_id=eq.${session.id}` },
-        () => loadPairings()
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'session_pairings', filter: `session_id=eq.${session.id}` },
-        () => loadPairings()
-      )
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [session?.id, loadContent, loadPairings])
 
   if (loading) {
     return (
