@@ -16,6 +16,8 @@ export interface ComicFlowHeaderProps {
   previewDisabled?: boolean
   /** When true, Publish button is disabled. */
   publishDisabled?: boolean
+  /** Shown before the title field (e.g. grid/list toggle on create). */
+  leadingActions?: React.ReactNode
 }
 
 export function ComicFlowHeader({
@@ -28,32 +30,34 @@ export function ComicFlowHeader({
   hideActions = false,
   previewDisabled = false,
   publishDisabled = false,
+  leadingActions,
 }: ComicFlowHeaderProps) {
   const { user } = useAuth()
 
   return (
     <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2">
-      <div className="flex items-center justify-between gap-4 min-w-0">
+      <div className="flex flex-nowrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full overflow-x-auto">
         <div className="flex items-center min-w-0 shrink-0">
           {variant === 'create' && leftContent}
           {variant === 'edit' && (
             <Link
               to="/create"
-              className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2"
+              className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2 whitespace-nowrap"
             >
               ← Back
             </Link>
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 ml-auto">
+        <div className="flex flex-nowrap items-center justify-end gap-x-2 sm:gap-x-3 ml-auto shrink-0 text-sm text-gray-900">
+          {leadingActions}
           {title != null && onTitleChange && (
             <input
               type="text"
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
               maxLength={120}
-              className="min-h-[32px] w-[140px] sm:w-[180px] px-2 rounded border border-gray-300 bg-white text-right text-sm text-gray-900"
+              className="min-h-[32px] w-[100px] sm:w-[120px] md:w-[140px] shrink-0 px-2 rounded border border-gray-300 bg-white text-left text-sm text-gray-900"
               aria-label="Comic title"
             />
           )}

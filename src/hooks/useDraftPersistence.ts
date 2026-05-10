@@ -122,7 +122,7 @@ export function useDraftPersistence(user: unknown, authLoading: boolean): void {
       hadFramesThisSession.current = true
       const restored = draft.frames.map(storedToFrame)
       setFrames(restored)
-      setComicTitle(draft.title?.trim() || 'Untitled')
+      setComicTitle(draft.title?.trim() || 'Comic Title')
     })()
 
     return () => {

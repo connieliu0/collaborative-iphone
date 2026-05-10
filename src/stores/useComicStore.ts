@@ -74,7 +74,7 @@ interface ComicState {
 
 export const useComicStore = create<ComicState>((set) => ({
   frames: [],
-  comicTitle: 'Untitled',
+  comicTitle: 'Comic Title',
   publishedSlug: null,
   publishedComicId: null,
 
@@ -139,7 +139,7 @@ export const useComicStore = create<ComicState>((set) => ({
       })
       return {
         frames: [],
-        comicTitle: 'Untitled',
+        comicTitle: 'Comic Title',
         publishedSlug: null,
         publishedComicId: null,
       }

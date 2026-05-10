@@ -293,7 +293,7 @@ function SortableListItem({
       <div
         ref={setNodeRef}
         style={style}
-        className={`flex flex-row items-center gap-3 w-full rounded-lg border border-border bg-surface overflow-hidden cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isDragging ? 'opacity-80 z-10' : ''}`}
+        className={`flex flex-row items-stretch gap-0 w-full rounded-lg border border-border bg-surface overflow-hidden cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isDragging ? 'opacity-80 z-10' : ''}`}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -304,8 +304,30 @@ function SortableListItem({
         {...listAttributes}
         {...listeners}
       >
+        <button
+          type="button"
+          className="shrink-0 w-14 min-h-14 self-stretch rounded-l-lg overflow-hidden border-r border-border focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset"
+          onClick={(e) => {
+            e.stopPropagation()
+            frame.imageUrl ? onNavigate(frame.id) : onUpload(frame.id)
+          }}
+          aria-label={frame.imageUrl ? `Edit frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
+        >
+          {frame.imageUrl ? (
+            <img
+              src={frame.imageUrl}
+              alt=""
+              className="h-full w-full min-h-14 object-cover pointer-events-none"
+              draggable={false}
+            />
+          ) : (
+            <div className="h-full min-h-14 w-full flex items-center justify-center bg-gray-100">
+              <span className="text-xs text-gray-500">+</span>
+            </div>
+          )}
+        </button>
         <div
-          className="flex-1 min-w-0 py-3 px-3 text-sm text-gray-900 cursor-text hover:bg-gray-100/80 transition-colors"
+          className="flex-1 min-w-0 flex items-center py-3 px-3 text-sm text-gray-900 cursor-text hover:bg-gray-100/80 transition-colors"
           onClick={(e) => {
             e.stopPropagation()
             if (!isEditingCaption) {
@@ -328,23 +350,25 @@ function SortableListItem({
               onBlur={() => setIsEditingCaption(false)}
               onClick={(e) => e.stopPropagation()}
               rows={1}
-              className="block w-full h-full min-h-[1.5rem] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-sm leading-snug text-gray-900 placeholder-gray-400"
+              className="block w-full min-h-[1.25rem] p-0 m-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-sm leading-snug text-gray-900 placeholder:text-gray-500 placeholder:opacity-100"
               style={{
                 fontFamily:
                   FONT_FAMILY_OPTIONS.find((f) => f.id === frame.fontFamily)?.fontFamily ??
                   '"News Cycle", sans-serif',
+                lineHeight: 1.375,
               }}
               placeholder="Add a caption..."
             />
           ) : (
             <span
-              className={`select-none ${
+              className={`block w-full select-none leading-snug ${
                 displayText === 'Add a caption...' ? 'text-gray-500' : 'text-gray-900'
               }`}
               style={{
                 fontFamily:
                   FONT_FAMILY_OPTIONS.find((f) => f.id === frame.fontFamily)?.fontFamily ??
                   '"News Cycle", sans-serif',
+                lineHeight: 1.375,
               }}
             >
               {displayText}
@@ -353,33 +377,11 @@ function SortableListItem({
         </div>
         <button
           type="button"
-          className="shrink-0 w-14 h-14 rounded-r-lg overflow-hidden border-l border-border focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset"
-          onClick={(e) => {
-            e.stopPropagation()
-            frame.imageUrl ? onNavigate(frame.id) : onUpload(frame.id)
-          }}
-          aria-label={frame.imageUrl ? `Edit frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
-        >
-          {frame.imageUrl ? (
-            <img
-              src={frame.imageUrl}
-              alt=""
-              className="w-full h-full object-cover pointer-events-none"
-              draggable={false}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <span className="text-xs text-gray-500">+</span>
-            </div>
-          )}
-        </button>
-        <button
-          type="button"
           onClick={(e) => {
             e.stopPropagation()
             onRemove(frame.id)
           }}
-          className="shrink-0 p-2 text-gray-400 hover:text-red-500 focus:outline-none"
+          className="shrink-0 self-center p-2 text-gray-400 hover:text-red-500 focus:outline-none"
           aria-label={`Remove frame ${index + 1}`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -602,7 +604,7 @@ export function CreatePage() {
           hasFrames ? (
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm text-gray-600 shrink-0">Font</span>
-              <div className="relative w-[160px] sm:w-[180px] min-h-[32px]">
+              <div className="relative w-[160px] sm:w-[100px] min-h-[32px]">
                 <span
                   className="pointer-events-none absolute inset-0 flex items-center rounded border border-gray-300 bg-white px-2 text-sm text-gray-900 whitespace-nowrap"
                   style={{
@@ -638,6 +640,34 @@ export function CreatePage() {
         }
         previewDisabled={frames.length === 0}
         publishDisabled={frames.length === 0}
+        leadingActions={
+          hasFrames ? (
+            <div
+              className="flex rounded-md border border-border bg-surface p-0.5 shrink-0"
+              role="tablist"
+              aria-label="View layout"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'grid'}
+                onClick={() => setView('grid')}
+                className={`px-2 py-1 text-xs sm:text-sm rounded sm:rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'grid' ? 'bg-primary text-on-primary' : 'text-foreground hover:bg-gray-100'}`}
+              >
+                Grid
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={view === 'list'}
+                onClick={() => setView('list')}
+                className={`px-2 py-1 text-xs sm:text-sm rounded sm:rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'list' ? 'bg-primary text-on-primary' : 'text-foreground hover:bg-gray-100'}`}
+              >
+                List
+              </button>
+            </div>
+          ) : undefined
+        }
       />
 
       {!hasFrames ? (
@@ -655,37 +685,6 @@ export function CreatePage() {
         </>
       ) : (
         <>
-          {frames.length > 0 && (
-            <>
-              <div className="flex items-center justify-end gap-3 mb-3">
-                <div
-                  className="flex rounded-lg border border-border bg-surface p-0.5 shrink-0"
-                  role="tablist"
-                  aria-label="View layout"
-                >
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={view === 'grid'}
-                    onClick={() => setView('grid')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'grid' ? 'bg-primary text-on-primary' : 'text-foreground hover:bg-gray-100'}`}
-                  >
-                    Grid
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={view === 'list'}
-                    onClick={() => setView('list')}
-                    className={`px-3 py-1.5 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'list' ? 'bg-primary text-on-primary' : 'text-foreground hover:bg-gray-100'}`}
-                  >
-                    List
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-
           {view === 'grid' ? (
             <DndContext
               sensors={sensors}

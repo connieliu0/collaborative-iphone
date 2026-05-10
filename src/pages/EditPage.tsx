@@ -322,7 +322,7 @@ export function EditPage() {
                 </div>
                 <div
                   ref={overlayBoxRef}
-                  className="cursor-text border-2 border-gray-400 rounded-lg p-2 min-w-[80px] max-w-[500px] min-h-[40px] flex items-center justify-center"
+                  className="cursor-text border-2 border-gray-400 rounded-lg p-2 min-w-[220px] max-w-[640px] min-h-[40px] flex items-center justify-center"
                   style={{
                     ...(savedOverlayWidth != null ? { width: `${savedOverlayWidth}px` } : {}),
                   }}
@@ -349,7 +349,7 @@ export function EditPage() {
                       }, 120)
                     }}
                     placeholder={PLACEHOLDER_TEXT}
-                    className="w-full min-w-[60px] min-h-[28px] bg-transparent border-0 outline-none resize-none overflow-hidden text-center placeholder-gray-400 py-0"
+                    className="w-full min-w-[200px] min-h-[28px] bg-transparent border-0 outline-none resize-none overflow-hidden text-center placeholder-gray-400 py-0"
                     style={{
                       fontSize: `${frame.fontSize}px`,
                       color: frame.fontColor,
@@ -374,7 +374,7 @@ export function EditPage() {
                 ref={overlayBoxRef}
                 role="img"
                 aria-label="Text on image - tap to edit"
-                className="cursor-grab active:cursor-grabbing select-none touch-none border-2 border-transparent hover:border-gray-400 active:border-gray-400 transition-colors absolute rounded-lg p-2 min-w-[80px] max-w-[500px] min-h-[40px] flex items-center justify-center"
+                className="cursor-grab active:cursor-grabbing select-none touch-none border-2 border-transparent hover:border-gray-400 active:border-gray-400 transition-colors absolute rounded-lg p-2 min-w-[220px] max-w-[640px] min-h-[40px] flex items-center justify-center"
                 style={{
                   left: `${frame.overlayPosition.x}%`,
                   top: `${frame.overlayPosition.y}%`,

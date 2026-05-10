@@ -65,7 +65,7 @@ export async function publishComic(
   }
 
   const slug = crypto.randomUUID().slice(0, 8)
-  const title = options.title?.trim() || 'Untitled'
+  const title = options.title?.trim() || 'Comic Title'
   const isCollab = options.mode === 'collab'
   const collaboratorIds = options.collaboratorIds ?? []
   const turnOrder = [userId, ...collaboratorIds]
@@ -276,7 +276,7 @@ export async function updateComic(
   const { error: updateComicError } = await supabase
     .from('comics')
     .update({
-      title: title?.trim() || 'Untitled',
+      title: title?.trim() || 'Comic Title',
       status: 'complete',
       current_turn_user_id: null,
       mode: 'solo',

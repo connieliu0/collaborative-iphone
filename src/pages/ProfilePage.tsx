@@ -63,7 +63,7 @@ export function ProfilePage() {
   const handleDeleteComic = async (comic: ProfileComic) => {
     if (!user) return
 
-    const title = comic.title?.trim() ? comic.title : 'Untitled'
+    const title = comic.title?.trim() ? comic.title : 'Comic Title'
     const ok = window.confirm(`Delete "${title}"? This cannot be undone.`)
     if (!ok) return
 
@@ -160,9 +160,9 @@ export function ProfilePage() {
                     <div className="flex items-start justify-between gap-2">
                       <h2
                         className="text-sm font-semibold text-gray-900 truncate"
-                        title={comic.title?.trim() ? comic.title : 'Untitled'}
+                        title={comic.title?.trim() ? comic.title : 'Comic Title'}
                       >
-                        {comic.title?.trim() ? comic.title : 'Untitled'}
+                        {comic.title?.trim() ? comic.title : 'Comic Title'}
                       </h2>
                       <span className={`shrink-0 text-xs px-2 py-1 rounded-full border ${badgeClass}`}>
                         {comic.status === 'complete' ? 'Complete' : 'In progress'}
@@ -180,7 +180,7 @@ export function ProfilePage() {
                   <button
                     type="button"
                     className="shrink-0 inline-flex items-center justify-center h-8 px-3 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-label={`Delete ${comic.title?.trim() ? comic.title : 'Untitled'}`}
+                    aria-label={`Delete ${comic.title?.trim() ? comic.title : 'Comic Title'}`}
                     disabled={deletingId === comic.id}
                     onClick={(e) => {
                       e.preventDefault()
