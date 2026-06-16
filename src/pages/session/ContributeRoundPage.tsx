@@ -8,7 +8,7 @@ import {
   submitPhrases,
   getContributionCountForRound,
   getRandomImageForUser,
-  getRandomPhrases,
+  getPhrasesForUser,
   submitPairing,
   getSessionPairings,
   type SessionImageRow,
@@ -29,7 +29,7 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { session, loading, error } = useSession(code)
+  const { session, members, loading, error } = useSession(code)
   const isUiTest = mockRoundNumber !== undefined
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -120,16 +120,18 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
       return
     }
     if (!session?.id || !user?.id) return
+    const memberUserIds = members.map((m) => m.user_id)
+    if (memberUserIds.length === 0) return
     Promise.all([
       getRandomImageForUser(session.id, user.id),
-      getRandomPhrases(session.id, 20),
+      getPhrasesForUser(session.id, user.id, memberUserIds, 2),
     ]).then(([img, phrases]) => {
       setPairingImage(img)
       setPairingPhrases(phrases)
       if (phrases.length > 0) setSelectedPhraseId(phrases[0].id)
       setPairingLoaded(true)
     })
-  }, [roundNumber, session?.id, user?.id, pairingLoaded, isUiTest])
+  }, [roundNumber, session?.id, user?.id, members, pairingLoaded, isUiTest])
 
   useEffect(() => {
     if (isUiTest) return

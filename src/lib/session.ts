@@ -661,18 +661,93 @@ export async function getRandomImageForUser(
   return data[idx] as SessionImageRow
 }
 
-export async function getRandomPhrases(
+function hashString(seed: string): number {
+  let h = 0
+  for (let i = 0; i < seed.length; i++) {
+    h = (Math.imul(31, h) + seed.charCodeAt(i)) >>> 0
+  }
+  return h
+}
+
+function deterministicShuffle<T>(items: T[], seed: string): T[] {
+  const arr = [...items]
+  let h = hashString(seed)
+  for (let i = arr.length - 1; i > 0; i--) {
+    h = (Math.imul(1103515245, h) + 12345) >>> 0
+    const j = h % (i + 1)
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+function sharedPhraseCount(phraseCount: number): number {
+  if (phraseCount <= 2) return phraseCount
+  if (phraseCount <= 4) return 2
+  return 3
+}
+
+function phraseGroupCount(playerCount: number): number {
+  if (playerCount >= 6) return 3
+  if (playerCount >= 4) return 2
+  return 1
+}
+
+/** Performance pairing: shared core phrases + a group-specific slice so piles overlap but differ. */
+export function partitionPhrasesForUser(
+  phrases: SessionPhraseRow[],
+  memberUserIds: string[],
+  userId: string,
+  sessionId: string
+): SessionPhraseRow[] {
+  const pool = [...phrases]
+    .filter((p) => p.user_id !== userId)
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+
+  if (pool.length === 0) return []
+
+  const userIndex = memberUserIds.indexOf(userId)
+  if (userIndex < 0) return pool
+
+  const sharedCount = sharedPhraseCount(pool.length)
+  const shuffled = deterministicShuffle(pool, sessionId)
+  const shared = shuffled.slice(0, sharedCount)
+  const exclusive = shuffled.slice(sharedCount)
+
+  if (exclusive.length === 0) return shared
+
+  const numGroups = phraseGroupCount(memberUserIds.length)
+  const groupIndex = userIndex % numGroups
+  const buckets: SessionPhraseRow[][] = Array.from({ length: numGroups }, () => [])
+  exclusive.forEach((phrase, i) => {
+    buckets[i % numGroups].push(phrase)
+  })
+
+  const seen = new Set<string>()
+  return [...shared, ...(buckets[groupIndex] ?? [])].filter((p) => {
+    if (seen.has(p.id)) return false
+    seen.add(p.id)
+    return true
+  })
+}
+
+export async function getPhrasesForUser(
   sessionId: string,
-  count = 10
+  userId: string,
+  memberUserIds: string[],
+  pairingRoundNumber = 2
 ): Promise<SessionPhraseRow[]> {
   const { data } = await supabase
     .from('session_phrases')
     .select('*')
     .eq('session_id', sessionId)
 
-  if (!data || data.length === 0) return []
-  const shuffled = [...data].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count) as SessionPhraseRow[]
+  const phrases = (data ?? []) as SessionPhraseRow[]
+  const forRound = phrases.filter(
+    (p) => p.round_number === pairingRoundNumber || p.round_number === null
+  )
+  const pool = forRound.length > 0 ? forRound : phrases
+
+  return partitionPhrasesForUser(pool, memberUserIds, userId, sessionId)
 }
 
 export async function submitPairing(

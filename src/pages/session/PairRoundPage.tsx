@@ -4,7 +4,7 @@ import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getRandomImageForUser,
-  getRandomPhrases,
+  getPhrasesForUser,
   submitPairing,
   getSessionPairings,
   type SessionImageRow,
@@ -19,7 +19,7 @@ export function PairRoundPage() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { session, loading, error } = useSession(code)
+  const { session, members, loading, error } = useSession(code)
 
   const [randomImage, setRandomImage] = useState<SessionImageRow | null>(null)
   const [phraseOptions, setPhraseOptions] = useState<SessionPhraseRow[]>([])
@@ -50,14 +50,17 @@ export function PairRoundPage() {
       return
     }
 
+    const memberUserIds = members.map((m) => m.user_id)
+    if (memberUserIds.length === 0) return
+
     const [img, phrases] = await Promise.all([
       getRandomImageForUser(session.id, user.id),
-      getRandomPhrases(session.id, 10),
+      getPhrasesForUser(session.id, user.id, memberUserIds, 2),
     ])
     setRandomImage(img)
     setPhraseOptions(phrases)
     setInitialized(true)
-  }, [session?.id, user?.id, initialized, session, user])
+  }, [session?.id, user?.id, members, initialized, session, user])
 
   useEffect(() => { loadData() }, [loadData])
 
