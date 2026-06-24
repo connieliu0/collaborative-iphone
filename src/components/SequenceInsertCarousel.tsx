@@ -4,11 +4,13 @@ import type { GalleryImage } from '../lib/gallery'
 const SWIPE_THRESHOLD_PX = 40
 const SLOT_H = 'h-[100dvh] max-h-[100dvh]'
 
-const CAPTION_MAIN = 'clamp(0.625rem, 2.8vw, 1.125rem)'
+export const CAPTION_MAIN = 'clamp(0.625rem, 2.8vw, 1.125rem)'
+/** Smaller captions for compact gallery panels on mobile (scales with panel, not full viewport). */
+export const CAPTION_GALLERY_MOBILE = 'clamp(0.5rem, 2.2vw, 0.8125rem)'
 const CAPTION_EDGE = 'clamp(0.5rem, 2.2vw, 0.875rem)'
 const PLACEHOLDER_LABEL = 'clamp(0.875rem, 4vw, 1.125rem)'
 
-function CaptionOverlay({ caption, fontSize }: { caption: string; fontSize: string }) {
+export function CaptionOverlay({ caption, fontSize }: { caption: string; fontSize: string }) {
   if (!caption.trim()) return null
 
   return (

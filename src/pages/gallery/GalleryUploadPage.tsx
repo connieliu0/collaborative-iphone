@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import {
   AddPictureLabel,
+  CaptionOverlay,
+  CAPTION_MAIN,
   SequenceInsertCarousel,
 } from '../../components/SequenceInsertCarousel'
 import {
@@ -53,6 +55,7 @@ export function GalleryUploadPage() {
   const [carouselFrozen, setCarouselFrozen] = useState(false)
   const timeoutRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const autoConfirmQueueIdRef = useRef<string | null>(null)
 
   const syncedIndex = useMemo(
     () => displayIndexFromState(images, displayState?.current_image_id),
@@ -84,7 +87,7 @@ export function GalleryUploadPage() {
     const entry = await fetchActiveQueueForSession(sessionId)
     if (!entry) {
       setQueueEntry(null)
-      setStep('mirror')
+      setStep((current) => (current === 'processing' ? current : 'mirror'))
       setCarouselFrozen(false)
       return
     }
@@ -95,8 +98,8 @@ export function GalleryUploadPage() {
       const ahead = await countPeopleAhead(entry)
       setWaitingCount(ahead)
     } else if (entry.status === 'active') {
-      setStep('confirm')
       setStagedPreviewUrl(entry.staged_image_url)
+      setStep((current) => (current === 'processing' ? current : 'confirm'))
     }
   }, [sessionId])
 
@@ -171,6 +174,7 @@ export function GalleryUploadPage() {
   }
 
   const handleCancel = async () => {
+    autoConfirmQueueIdRef.current = null
     if (!queueEntry) {
       setStep('mirror')
       setStagedPreviewUrl(null)
@@ -184,7 +188,7 @@ export function GalleryUploadPage() {
     setCarouselFrozen(false)
   }
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     if (!queueEntry || !stagedPreviewUrl) return
 
     setStep('processing')
@@ -203,16 +207,24 @@ export function GalleryUploadPage() {
       const newImage = await confirmGalleryUpload(queueEntry.id, insertAfterId, caption)
       navigate(`/gallery/result/${newImage.id}`)
     } catch (err) {
+      autoConfirmQueueIdRef.current = null
       setError(err instanceof Error ? err.message : 'Failed to confirm upload')
       setStep('confirm')
     }
-  }
+  }, [queueEntry, stagedPreviewUrl, images, insertAfterId, navigate])
+
+  useEffect(() => {
+    if (step !== 'confirm' || !queueEntry || !stagedPreviewUrl) return
+    if (autoConfirmQueueIdRef.current === queueEntry.id) return
+    autoConfirmQueueIdRef.current = queueEntry.id
+    void handleConfirm()
+  }, [step, queueEntry, stagedPreviewUrl, handleConfirm])
 
   const handleAddClick = () => {
     if (step === 'mirror' && !uploading) {
       freezeCarouselAt(focusedIndex)
       fileInputRef.current?.click()
-    } else if (step === 'confirm') {
+    } else if (step === 'confirm' && error) {
       void handleConfirm()
     }
   }
@@ -226,12 +238,17 @@ export function GalleryUploadPage() {
     }
     if ((step === 'confirm' || step === 'processing') && stagedPreviewUrl) {
       return (
-        <img
-          src={stagedPreviewUrl}
-          alt=""
-          className="h-full max-h-full w-full object-contain block md:h-[100dvh] md:max-h-[100dvh] md:w-auto"
-          draggable={false}
-        />
+        <div className="relative h-full w-full">
+          <img
+            src={stagedPreviewUrl}
+            alt=""
+            className="h-full max-h-full w-full object-contain block md:h-[100dvh] md:max-h-[100dvh] md:w-auto"
+            draggable={false}
+          />
+          {step === 'processing' && (
+            <CaptionOverlay caption="Generating" fontSize={CAPTION_MAIN} />
+          )}
+        </div>
       )
     }
     return <AddPictureLabel />
@@ -252,7 +269,9 @@ export function GalleryUploadPage() {
         focusedIndex={focusedIndex}
         onFocusedIndexChange={setFocusedIndex}
         addSlot={addSlotContent}
-        onAddClick={step === 'mirror' || step === 'confirm' ? handleAddClick : undefined}
+        onAddClick={
+          step === 'mirror' || (step === 'confirm' && error) ? handleAddClick : undefined
+        }
         disabled={carouselDisabled}
       />
 
