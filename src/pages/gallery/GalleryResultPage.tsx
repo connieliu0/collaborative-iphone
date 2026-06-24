@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import {
@@ -67,7 +67,7 @@ function MainPreviewPanel({
   image: GalleryImage
   caption: string
   className?: string
-  panelRef?: RefObject<HTMLDivElement | null>
+  panelRef?: Ref<HTMLDivElement>
   mobileCaptionFontSize?: string
 }) {
   return (
