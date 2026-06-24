@@ -229,7 +229,7 @@ export function GalleryUploadPage() {
         <img
           src={stagedPreviewUrl}
           alt=""
-          className="h-[100dvh] max-h-[100dvh] w-auto object-contain block"
+          className="h-full max-h-full w-full object-contain block md:h-[100dvh] md:max-h-[100dvh] md:w-auto"
           draggable={false}
         />
       )

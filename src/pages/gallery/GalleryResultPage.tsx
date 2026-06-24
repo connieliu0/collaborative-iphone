@@ -18,8 +18,6 @@ const btn =
   'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm disabled:opacity-50'
 
 const FRAME_WIDTH = 384
-const BRAND_TEXT = 'sequence.connie.surf'
-const BRAND_STRIP_WIDTH = 18
 
 export function GalleryResultPage() {
   const { id } = useParams<{ id: string }>()
@@ -105,7 +103,7 @@ export function GalleryResultPage() {
 
   const renderFrameToBlob = async (
     galleryImage: GalleryImage,
-    options?: { showBranding?: boolean; caption?: string }
+    options?: { caption?: string }
   ): Promise<Blob> => {
     const captionText = options?.caption ?? galleryImage.caption
     const container = renderContainerRef.current
@@ -113,20 +111,10 @@ export function GalleryResultPage() {
 
     container.innerHTML = ''
 
-    const showBranding = options?.showBranding ?? false
-    const totalWidth = showBranding ? FRAME_WIDTH + BRAND_STRIP_WIDTH : FRAME_WIDTH
-
     const frameWrapper = document.createElement('div')
-    frameWrapper.style.width = `${totalWidth}px`
-    frameWrapper.style.display = showBranding ? 'flex' : 'block'
-    frameWrapper.style.flexDirection = 'row'
+    frameWrapper.style.width = `${FRAME_WIDTH}px`
     frameWrapper.style.position = 'relative'
     frameWrapper.style.backgroundColor = '#000'
-
-    const imageArea = document.createElement('div')
-    imageArea.style.width = `${FRAME_WIDTH}px`
-    imageArea.style.flexShrink = '0'
-    imageArea.style.position = 'relative'
 
     const img = document.createElement('img')
     img.crossOrigin = 'anonymous'
@@ -140,7 +128,7 @@ export function GalleryResultPage() {
       img.onerror = () => reject(new Error('Failed to load image'))
     })
 
-    imageArea.appendChild(img)
+    frameWrapper.appendChild(img)
 
     if (captionText.trim()) {
       const captionEl = document.createElement('div')
@@ -160,35 +148,13 @@ export function GalleryResultPage() {
       captionEl.style.boxSizing = 'border-box'
       captionEl.style.maxWidth = '90%'
       captionEl.style.wordWrap = 'break-word'
-      imageArea.appendChild(captionEl)
-    }
-
-    frameWrapper.appendChild(imageArea)
-
-    if (showBranding) {
-      const brand = document.createElement('div')
-      brand.textContent = BRAND_TEXT
-      brand.style.width = `${BRAND_STRIP_WIDTH}px`
-      brand.style.flexShrink = '0'
-      brand.style.alignSelf = 'stretch'
-      brand.style.display = 'flex'
-      brand.style.alignItems = 'center'
-      brand.style.justifyContent = 'center'
-      brand.style.backgroundColor = '#ffffff'
-      brand.style.color = '#000000'
-      brand.style.fontSize = '7px'
-      brand.style.fontFamily = 'Arial, sans-serif'
-      brand.style.writingMode = 'vertical-rl'
-      brand.style.textOrientation = 'mixed'
-      brand.style.letterSpacing = '0.3px'
-      brand.style.lineHeight = '1'
-      frameWrapper.appendChild(brand)
+      frameWrapper.appendChild(captionEl)
     }
 
     container.appendChild(frameWrapper)
 
     const dataUrl = await toPng(frameWrapper, {
-      width: totalWidth,
+      width: FRAME_WIDTH,
       pixelRatio: 1,
       backgroundColor: '#000',
     })
@@ -212,7 +178,6 @@ export function GalleryResultPage() {
       for (let i = 0; i < sequence.length; i++) {
         setPrintProgress(`Rendering ${i + 1} of ${sequence.length}…`)
         const blob = await renderFrameToBlob(sequence[i], {
-          showBranding: i === sequence.length - 1,
           caption: sequence[i].id === image.id ? caption : undefined,
         })
         setPrintProgress(`Uploading ${i + 1} of ${sequence.length}…`)
