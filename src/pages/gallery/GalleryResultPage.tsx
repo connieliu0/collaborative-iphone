@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { toPng } from 'html-to-image'
 import { supabase } from '../../lib/supabase'
 import {
   createPrintJob,
   fetchGalleryImage,
   fetchGalleryImages,
   fetchPrintJob,
+  getUserSessionId,
+  uploadComposedImage,
   type GalleryImage,
 } from '../../lib/gallery'
 import { FrameContent } from '../ComicViewerPage'
@@ -21,6 +24,8 @@ export function GalleryResultPage() {
   const [printStatus, setPrintStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [printing, setPrinting] = useState(false)
+  const [printProgress, setPrintProgress] = useState('')
+  const renderContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!id) return
@@ -66,32 +71,106 @@ export function GalleryResultPage() {
     }
   }, [printJobId])
 
-  const getPrintSequence = useCallback((): string[] => {
+  const getPrintSequence = useCallback((): GalleryImage[] => {
     if (!image) return []
     const sorted = [...allImages].sort((a, b) => a.position - b.position)
     const idx = sorted.findIndex((img) => img.id === image.id)
-    if (idx === -1) return [image.id]
+    if (idx === -1) return [image]
 
     const before = sorted[idx - 1]
     const after = sorted[idx + 1]
-    const ids: string[] = []
-    if (before) ids.push(before.id)
-    ids.push(image.id)
-    if (after) ids.push(after.id)
-    return ids
+    const sequence: GalleryImage[] = []
+    if (before) sequence.push(before)
+    sequence.push(image)
+    if (after) sequence.push(after)
+    return sequence
   }, [image, allImages])
+
+  const renderFrameToBlob = async (galleryImage: GalleryImage): Promise<Blob> => {
+    const container = renderContainerRef.current
+    if (!container) throw new Error('Render container not found')
+
+    container.innerHTML = ''
+
+    const frameWrapper = document.createElement('div')
+    frameWrapper.style.width = '384px'
+    frameWrapper.style.position = 'relative'
+    frameWrapper.style.backgroundColor = '#000'
+
+    const img = document.createElement('img')
+    img.crossOrigin = 'anonymous'
+    img.src = galleryImage.image_url
+    img.style.width = '100%'
+    img.style.height = 'auto'
+    img.style.display = 'block'
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to load image'))
+    })
+
+    frameWrapper.appendChild(img)
+
+    if (galleryImage.caption.trim()) {
+      const caption = document.createElement('div')
+      caption.textContent = galleryImage.caption
+      caption.style.position = 'absolute'
+      caption.style.left = '50%'
+      caption.style.bottom = '8%'
+      caption.style.transform = 'translateX(-50%)'
+      caption.style.color = '#ffffff'
+      caption.style.fontSize = '18px'
+      caption.style.fontWeight = 'bold'
+      caption.style.fontFamily = '"News Cycle", Arial, sans-serif'
+      caption.style.textAlign = 'center'
+      caption.style.textShadow =
+        '-1px -1px 0 rgba(0,0,0,0.85), -1px 0 0 rgba(0,0,0,0.85), -1px 1px 0 rgba(0,0,0,0.85), ' +
+        '0 -1px 0 rgba(0,0,0,0.85), 0 1px 0 rgba(0,0,0,0.85), ' +
+        '1px -1px 0 rgba(0,0,0,0.85), 1px 0 0 rgba(0,0,0,0.85), 1px 1px 0 rgba(0,0,0,0.85)'
+      caption.style.maxWidth = '90%'
+      caption.style.wordWrap = 'break-word'
+      frameWrapper.appendChild(caption)
+    }
+
+    container.appendChild(frameWrapper)
+
+    const dataUrl = await toPng(frameWrapper, {
+      width: 384,
+      pixelRatio: 1,
+      backgroundColor: '#000',
+    })
+
+    const res = await fetch(dataUrl)
+    return res.blob()
+  }
 
   const handlePrint = async () => {
     if (!image) return
     setPrinting(true)
     setError(null)
+    setPrintProgress('Preparing images…')
+
     try {
-      const imageIds = getPrintSequence()
-      const jobId = await createPrintJob(imageIds)
+      const sequence = getPrintSequence()
+      const sessionId = getUserSessionId()
+      const composedUrls: string[] = []
+
+      for (let i = 0; i < sequence.length; i++) {
+        setPrintProgress(`Rendering ${i + 1} of ${sequence.length}…`)
+        const blob = await renderFrameToBlob(sequence[i])
+        setPrintProgress(`Uploading ${i + 1} of ${sequence.length}…`)
+        const url = await uploadComposedImage(blob, sessionId)
+        composedUrls.push(url)
+      }
+
+      setPrintProgress('Sending to printer…')
+      const jobId = await createPrintJob(composedUrls)
       setPrintJobId(jobId)
       setPrintStatus('pending')
+      setPrintProgress('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to queue print')
+      setPrintProgress('')
     } finally {
       setPrinting(false)
     }
@@ -132,7 +211,7 @@ export function GalleryResultPage() {
           : printStatus === 'pending' || printStatus === 'printing'
             ? 'Printing…'
             : printing
-              ? 'Queuing…'
+              ? printProgress || 'Preparing…'
               : 'Print'}
       </button>
 
@@ -149,6 +228,19 @@ export function GalleryResultPage() {
       <Link to="/gallery/upload" className="text-sm text-center text-gray-600 underline">
         Add another
       </Link>
+
+      {/* Hidden container for rendering frames to PNG */}
+      <div
+        ref={renderContainerRef}
+        style={{
+          position: 'fixed',
+          left: '-9999px',
+          top: 0,
+          width: '384px',
+          overflow: 'hidden',
+        }}
+        aria-hidden
+      />
     </div>
   )
 }

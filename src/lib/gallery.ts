@@ -32,7 +32,7 @@ export interface UploadQueueEntry {
 
 export interface PrintJob {
   id: string
-  image_ids: string[]
+  composed_image_urls: string[]
   status: PrintJobStatus
   created_at: string
 }
@@ -192,10 +192,23 @@ export function getNeighborImages(
   return { before, after }
 }
 
-export async function createPrintJob(imageIds: string[]): Promise<string> {
+export async function uploadComposedImage(blob: Blob, sessionId: string): Promise<string> {
+  const path = `composed/${sessionId}/${Date.now()}.png`
+
+  const { error: uploadError } = await supabase.storage
+    .from(GALLERY_BUCKET)
+    .upload(path, blob, { upsert: true, contentType: 'image/png' })
+
+  if (uploadError) throw uploadError
+
+  const { data } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function createPrintJob(composedImageUrls: string[]): Promise<string> {
   const { data, error } = await supabase
     .from('print_jobs')
-    .insert({ image_ids: imageIds })
+    .insert({ composed_image_urls: composedImageUrls })
     .select('id')
     .single()
 
