@@ -14,6 +14,7 @@ import {
   getNeighborImages,
   getUserSessionId,
   joinUploadQueue,
+  updateDisplayState,
   uploadStagedImage,
   type UploadQueueEntry,
 } from '../../lib/gallery'
@@ -49,6 +50,7 @@ export function GalleryUploadPage() {
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [focusedIndex, setFocusedIndex] = useState(-1)
+  const [carouselFrozen, setCarouselFrozen] = useState(false)
   const timeoutRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -57,9 +59,21 @@ export function GalleryUploadPage() {
     [displayState?.current_image_id, images]
   )
 
+  const freezeCarouselAt = useCallback(
+    (index: number) => {
+      setCarouselFrozen(true)
+      const imageId = index >= 0 ? images[index]?.id ?? null : null
+      void updateDisplayState(imageId).catch((err) => {
+        console.error('Failed to freeze display position', err)
+      })
+    },
+    [images]
+  )
+
   useEffect(() => {
+    if (carouselFrozen) return
     setFocusedIndex(syncedIndex)
-  }, [syncedIndex])
+  }, [syncedIndex, carouselFrozen])
 
   const insertAfterId = useMemo(() => {
     if (focusedIndex < 0) return null
@@ -71,8 +85,10 @@ export function GalleryUploadPage() {
     if (!entry) {
       setQueueEntry(null)
       setStep('mirror')
+      setCarouselFrozen(false)
       return
     }
+    setCarouselFrozen(true)
     setQueueEntry(entry)
     if (entry.status === 'waiting') {
       setStep('waiting')
@@ -148,6 +164,7 @@ export function GalleryUploadPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed')
       setStagedPreviewUrl(null)
+      setCarouselFrozen(false)
     } finally {
       setUploading(false)
     }
@@ -157,12 +174,14 @@ export function GalleryUploadPage() {
     if (!queueEntry) {
       setStep('mirror')
       setStagedPreviewUrl(null)
+      setCarouselFrozen(false)
       return
     }
     await cancelQueueEntry(queueEntry.id)
     setQueueEntry(null)
     setStagedPreviewUrl(null)
     setStep('mirror')
+    setCarouselFrozen(false)
   }
 
   const handleConfirm = async () => {
@@ -191,6 +210,7 @@ export function GalleryUploadPage() {
 
   const handleAddClick = () => {
     if (step === 'mirror' && !uploading) {
+      freezeCarouselAt(focusedIndex)
       fileInputRef.current?.click()
     } else if (step === 'confirm') {
       void handleConfirm()

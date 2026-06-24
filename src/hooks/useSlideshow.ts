@@ -3,7 +3,7 @@ import { updateDisplayState, type GalleryImage } from '../lib/gallery'
 
 const SLIDE_INTERVAL_MS = 3000
 
-export function useSlideshow(images: GalleryImage[], broadcast = false) {
+export function useSlideshow(images: GalleryImage[], broadcast = false, paused = false) {
   const [index, setIndex] = useState(0)
   const lastBroadcastRef = useRef<string | null>(null)
 
@@ -18,19 +18,19 @@ export function useSlideshow(images: GalleryImage[], broadcast = false) {
   }, [images.length, index])
 
   useEffect(() => {
-    if (images.length <= 1) return
+    if (images.length <= 1 || paused) return
 
     const timer = setInterval(() => {
       setIndex((i) => (i + 1) % images.length)
     }, SLIDE_INTERVAL_MS)
 
     return () => clearInterval(timer)
-  }, [images.length])
+  }, [images.length, paused])
 
   const current = images[index] ?? null
 
   useEffect(() => {
-    if (!broadcast) return
+    if (!broadcast || paused) return
     const imageId = current?.id ?? null
     if (lastBroadcastRef.current === imageId) return
     lastBroadcastRef.current = imageId
@@ -38,7 +38,7 @@ export function useSlideshow(images: GalleryImage[], broadcast = false) {
     void updateDisplayState(imageId).catch((err) => {
       console.error('Failed to update display state', err)
     })
-  }, [broadcast, current?.id])
+  }, [broadcast, paused, current?.id])
 
-  return { current, index }
+  return { current, index, setIndex }
 }
