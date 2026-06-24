@@ -6,9 +6,7 @@ import {
   fetchGalleryImage,
   fetchGalleryImages,
   fetchPrintJob,
-  getUserSessionId,
   updateGalleryCaption,
-  uploadComposedImage,
   type GalleryImage,
 } from '../../lib/gallery'
 import { FrameContent } from '../ComicViewerPage'
@@ -17,7 +15,6 @@ import { CaptionOverlay, CAPTION_GALLERY_MOBILE, CAPTION_MAIN } from '../../comp
 const btn =
   'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm disabled:opacity-50'
 
-const FRAME_WIDTH = 384
 const MOBILE_PANEL_H = 'h-[48dvh]'
 const MOBILE_PANEL_W = 'w-[72vw] shrink-0 snap-center'
 
@@ -210,93 +207,21 @@ export function GalleryResultPage() {
     return () => window.cancelAnimationFrame(frame)
   }, [image, beforeImage, afterImage])
 
-  const renderFrameToBlob = async (
-    galleryImage: GalleryImage,
-    options?: { caption?: string }
-  ): Promise<Blob> => {
-    const captionText = options?.caption ?? galleryImage.caption
-
-    const res = await fetch(galleryImage.image_url)
-    if (!res.ok) throw new Error('Failed to load image')
-    const imageBlob = await res.blob()
-    const bitmap = await createImageBitmap(imageBlob)
-
-    const frameHeight = Math.max(1, Math.round((bitmap.height * FRAME_WIDTH) / bitmap.width))
-    const canvas = document.createElement('canvas')
-    canvas.width = FRAME_WIDTH
-    canvas.height = frameHeight
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      bitmap.close()
-      throw new Error('Canvas not supported')
-    }
-
-    ctx.fillStyle = '#000000'
-    ctx.fillRect(0, 0, FRAME_WIDTH, frameHeight)
-    ctx.drawImage(bitmap, 0, 0, FRAME_WIDTH, frameHeight)
-    bitmap.close()
-
-    if (captionText.trim()) {
-      const fontSize = 18
-      const paddingX = 10
-      const paddingY = 6
-      const maxTextWidth = FRAME_WIDTH * 0.9 - paddingX * 2
-      ctx.font = `bold ${fontSize}px Arial, sans-serif`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-
-      const lines = wrapCaptionLines(ctx, captionText.trim(), maxTextWidth)
-      const lineHeight = fontSize * 1.2
-      const textBlockHeight = lines.length * lineHeight
-      const blockWidth = Math.min(
-        maxTextWidth + paddingX * 2,
-        Math.max(...lines.map((line) => ctx.measureText(line).width)) + paddingX * 2
-      )
-      const blockX = (FRAME_WIDTH - blockWidth) / 2
-      const blockY = frameHeight * 0.92 - textBlockHeight / 2 - paddingY
-
-      ctx.fillStyle = '#000000'
-      ctx.fillRect(blockX, blockY, blockWidth, textBlockHeight + paddingY * 2)
-
-      ctx.fillStyle = '#ffffff'
-      lines.forEach((line, index) => {
-        const y = blockY + paddingY + lineHeight * (index + 0.5)
-        ctx.fillText(line, FRAME_WIDTH / 2, y)
-      })
-    }
-
-    return new Promise((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('Failed to render frame'))),
-        'image/png'
-      )
-    })
-  }
-
   const handlePrint = async () => {
     if (!image) return
     setPrinting(true)
     setError(null)
-    setPrintProgress('Preparing images…')
+    setPrintProgress('Sending to printer…')
 
     try {
       await saveCaptionIfChanged()
       const sequence = getPrintSequence()
-      const sessionId = getUserSessionId()
-      const composedUrls: string[] = []
+      const frames = sequence.map((item) => ({
+        image_url: item.image_url,
+        caption: item.id === image.id ? caption : item.caption,
+      }))
 
-      for (let i = 0; i < sequence.length; i++) {
-        setPrintProgress(`Rendering ${i + 1} of ${sequence.length}…`)
-        const blob = await renderFrameToBlob(sequence[i], {
-          caption: sequence[i].id === image.id ? caption : undefined,
-        })
-        setPrintProgress(`Uploading ${i + 1} of ${sequence.length}…`)
-        const url = await uploadComposedImage(blob, sessionId)
-        composedUrls.push(url)
-      }
-
-      setPrintProgress('Sending to printer…')
-      const jobId = await createPrintJob(composedUrls)
+      const jobId = await createPrintJob(frames)
       setPrintJobId(jobId)
       setPrintStatus('pending')
       setPrintProgress('')
@@ -414,27 +339,4 @@ export function GalleryResultPage() {
       </div>
     </div>
   )
-}
-
-function wrapCaptionLines(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxWidth: number
-): string[] {
-  const words = text.split(/\s+/)
-  const lines: string[] = []
-  let current = ''
-
-  for (const word of words) {
-    const next = current ? `${current} ${word}` : word
-    if (ctx.measureText(next).width <= maxWidth || !current) {
-      current = next
-    } else {
-      lines.push(current)
-      current = word
-    }
-  }
-
-  if (current) lines.push(current)
-  return lines.length > 0 ? lines : [text]
 }

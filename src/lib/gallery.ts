@@ -30,9 +30,15 @@ export interface UploadQueueEntry {
   created_at: string
 }
 
+export interface PrintFrame {
+  image_url: string
+  caption: string
+}
+
 export interface PrintJob {
   id: string
   composed_image_urls: string[]
+  print_frames: PrintFrame[] | null
   status: PrintJobStatus
   created_at: string
 }
@@ -213,10 +219,10 @@ export async function uploadComposedImage(blob: Blob, sessionId: string): Promis
   return data.publicUrl
 }
 
-export async function createPrintJob(composedImageUrls: string[]): Promise<string> {
+export async function createPrintJob(frames: PrintFrame[]): Promise<string> {
   const { data, error } = await supabase
     .from('print_jobs')
-    .insert({ composed_image_urls: composedImageUrls })
+    .insert({ print_frames: frames, composed_image_urls: [] })
     .select('id')
     .single()
 
