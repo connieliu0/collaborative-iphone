@@ -20,6 +20,9 @@ import { VisualizerPage } from './pages/session/VisualizerPage'
 import { ContributeRoundPage } from './pages/session/ContributeRoundPage'
 import { PairRoundPage } from './pages/session/PairRoundPage'
 import { AdminPage } from './pages/session/AdminPage'
+import { GalleryDisplayPage } from './pages/gallery/GalleryDisplayPage'
+import { GalleryUploadPage } from './pages/gallery/GalleryUploadPage'
+import { GalleryResultPage } from './pages/gallery/GalleryResultPage'
 
 export function App() {
   return (
@@ -76,6 +79,11 @@ export function App() {
           <Route path="/ui-test/session/contribute/1" element={<ContributeRoundPage mockRoundNumber={1} />} />
           <Route path="/ui-test/session/contribute/2" element={<ContributeRoundPage mockRoundNumber={2} />} />
           <Route path="/ui-test/session/contribute/3" element={<ContributeRoundPage mockRoundNumber={3} />} />
+
+          {/* Gallery Print routes */}
+          <Route path="/gallery/display" element={<GalleryDisplayPage />} />
+          <Route path="/gallery/upload" element={<GalleryUploadPage />} />
+          <Route path="/gallery/result/:id" element={<GalleryResultPage />} />
         </Routes>
       </Layout>
     </AuthModalProvider>
