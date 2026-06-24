@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import {
+  AddPictureLabel,
+  SequenceInsertCarousel,
+} from '../../components/SequenceInsertCarousel'
+import {
   cancelQueueEntry,
   confirmGalleryUpload,
   countPeopleAhead,
@@ -11,18 +15,26 @@ import {
   getUserSessionId,
   joinUploadQueue,
   uploadStagedImage,
-  type GalleryImage,
   type UploadQueueEntry,
 } from '../../lib/gallery'
-import { FrameContent } from '../ComicViewerPage'
+import { prepareGalleryUpload } from '../../lib/prepareImage'
 import { useDisplayState } from '../../hooks/useDisplayState'
 import { useGalleryImages } from '../../hooks/useGalleryImages'
 
 const ACTIVE_TIMEOUT_MS = 60_000
-const btn =
-  'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white text-sm disabled:opacity-50'
 
 type Step = 'mirror' | 'waiting' | 'confirm' | 'processing'
+
+function displayIndexFromState(
+  images: { id: string }[],
+  currentImageId: string | null | undefined
+): number {
+  if (currentImageId) {
+    const idx = images.findIndex((img) => img.id === currentImageId)
+    if (idx >= 0) return idx
+  }
+  return images.length > 0 ? images.length - 1 : -1
+}
 
 export function GalleryUploadPage() {
   const navigate = useNavigate()
@@ -33,16 +45,26 @@ export function GalleryUploadPage() {
   const [step, setStep] = useState<Step>('mirror')
   const [queueEntry, setQueueEntry] = useState<UploadQueueEntry | null>(null)
   const [stagedPreviewUrl, setStagedPreviewUrl] = useState<string | null>(null)
-  const [waitingCount, setWaitingCount] = useState(0)
+  const [, setWaitingCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(-1)
   const timeoutRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const currentDisplayImage: GalleryImage | null = useMemo(() => {
-    if (!displayState?.current_image_id) return images[images.length - 1] ?? null
-    return images.find((img) => img.id === displayState.current_image_id) ?? images[0] ?? null
-  }, [displayState?.current_image_id, images])
+  const syncedIndex = useMemo(
+    () => displayIndexFromState(images, displayState?.current_image_id),
+    [displayState?.current_image_id, images]
+  )
+
+  useEffect(() => {
+    setFocusedIndex(syncedIndex)
+  }, [syncedIndex])
+
+  const insertAfterId = useMemo(() => {
+    if (focusedIndex < 0) return null
+    return images[focusedIndex]?.id ?? null
+  }, [focusedIndex, images])
 
   const refreshQueueEntry = useCallback(async () => {
     const entry = await fetchActiveQueueForSession(sessionId)
@@ -108,10 +130,11 @@ export function GalleryUploadPage() {
     setError(null)
     setUploading(true)
     try {
-      const localPreview = URL.createObjectURL(file)
+      const prepared = await prepareGalleryUpload(file)
+      const localPreview = URL.createObjectURL(prepared)
       setStagedPreviewUrl(localPreview)
 
-      const stagedUrl = await uploadStagedImage(file, sessionId)
+      const stagedUrl = await uploadStagedImage(prepared, sessionId)
       const entry = await joinUploadQueue(sessionId, stagedUrl)
       setQueueEntry(entry)
 
@@ -149,13 +172,13 @@ export function GalleryUploadPage() {
     setError(null)
 
     try {
-      const insertAfterId = displayState?.current_image_id ?? currentDisplayImage?.id ?? null
-      const { before, after } = getNeighborImages(images, insertAfterId)
+      const { before, after } =
+        images.length > 0 ? getNeighborImages(images, insertAfterId) : { before: null, after: null }
 
       const caption = await generateCaption({
         uploadedImageUrl: queueEntry.staged_image_url,
-        beforeImageUrl: before?.image_url ?? null,
-        afterImageUrl: after?.image_url ?? null,
+        beforeCaption: before?.caption ?? null,
+        afterCaption: after?.caption ?? null,
       })
 
       const newImage = await confirmGalleryUpload(queueEntry.id, insertAfterId, caption)
@@ -166,100 +189,68 @@ export function GalleryUploadPage() {
     }
   }
 
+  const handleAddClick = () => {
+    if (step === 'mirror' && !uploading) {
+      fileInputRef.current?.click()
+    } else if (step === 'confirm') {
+      void handleConfirm()
+    }
+  }
+
+  const carouselDisabled = step === 'processing' || uploading
+  const addSlotContent = (() => {
+    if (uploading || step === 'waiting') {
+      return (
+        <span className="block w-[clamp(1.75rem,8vw,2.5rem)] h-[clamp(1.75rem,8vw,2.5rem)] rounded-full border-2 border-gray-300 border-t-gray-900 animate-spin" />
+      )
+    }
+    if ((step === 'confirm' || step === 'processing') && stagedPreviewUrl) {
+      return (
+        <img
+          src={stagedPreviewUrl}
+          alt=""
+          className="h-[100dvh] max-h-[100dvh] w-auto object-contain block"
+          draggable={false}
+        />
+      )
+    }
+    return <AddPictureLabel />
+  })()
+
   return (
-    <div className="min-h-screen max-w-xl mx-auto px-4 py-6 flex flex-col gap-4">
-      <h1 className="text-lg font-medium">Add to the sequence</h1>
+    <div className="relative left-1/2 -translate-x-1/2 w-screen h-[100dvh] max-h-[100dvh] -my-6 overflow-hidden flex flex-col items-center justify-center">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
-      <section aria-label="Live display mirror">
-        <p className="text-xs text-gray-500 mb-2">Now showing on screen</p>
-        <div className="aspect-[4/3] w-full rounded overflow-hidden border border-gray-200">
-          {currentDisplayImage ? (
-            <FrameContent
-              frame={{
-                image_url: currentDisplayImage.image_url,
-                caption: currentDisplayImage.caption,
-                overlay_x: 50,
-                overlay_y: 87,
-                font_size: 16,
-                font_color: '#ffffff',
-              }}
-              showCaption={false}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center bg-gray-100 text-gray-500 text-sm">
-              No images yet — yours will be first
-            </div>
-          )}
-        </div>
-      </section>
+      <SequenceInsertCarousel
+        images={images}
+        focusedIndex={focusedIndex}
+        onFocusedIndexChange={setFocusedIndex}
+        addSlot={addSlotContent}
+        onAddClick={step === 'mirror' || step === 'confirm' ? handleAddClick : undefined}
+        disabled={carouselDisabled}
+      />
 
-      {step === 'mirror' && (
-        <div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <button
-            type="button"
-            className={btn + ' w-full'}
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploading ? 'Uploading…' : 'Choose image'}
-          </button>
-        </div>
-      )}
-
-      {step === 'waiting' && (
-        <div className="text-center text-sm text-gray-600">
-          <p>Waiting for {waitingCount} other {waitingCount === 1 ? 'person' : 'people'}…</p>
-          <p className="text-xs text-gray-400 mt-2">The screen above keeps updating</p>
-          <button type="button" className="mt-4 text-sm underline" onClick={handleCancel}>
-            Cancel
-          </button>
-        </div>
-      )}
-
-      {step === 'confirm' && stagedPreviewUrl && (
-        <div className="flex flex-col gap-4">
-          <p className="text-sm">Your image will appear after the one on screen.</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 aspect-[4/3] rounded overflow-hidden border border-gray-200">
-              {currentDisplayImage ? (
-                <img src={currentDisplayImage.image_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="h-full bg-gray-100" />
-              )}
-            </div>
-            <span className="text-gray-400">→</span>
-            <div className="flex-1 aspect-[4/3] rounded overflow-hidden border border-gray-200">
-              <img src={stagedPreviewUrl} alt="" className="w-full h-full object-cover" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button type="button" className={btn + ' flex-1'} onClick={handleConfirm}>
-              Confirm
-            </button>
-            <button
-              type="button"
-              className="min-h-[44px] px-4 py-2.5 rounded-lg border border-gray-300 text-sm flex-1"
-              onClick={handleCancel}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 'processing' && (
-        <p className="text-sm text-gray-600 text-center">Writing caption…</p>
+      {(step === 'waiting' || step === 'confirm') && (
+        <button
+          type="button"
+          onClick={() => void handleCancel()}
+          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-700"
+          aria-label="Cancel"
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
       )}
 
       {error && (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="absolute bottom-6 left-4 right-4 text-sm text-red-600 text-center" role="alert">
           {error}
         </p>
       )}

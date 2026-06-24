@@ -33,9 +33,11 @@ export function GalleryDisplayPage() {
             overlay_y: 87,
             font_size: 22,
             font_color: '#ffffff',
+            font_family: 'Arial',
           }}
           variant="preview"
           showCaption={false}
+          solidCaptionBackground
         />
       </div>
     </div>

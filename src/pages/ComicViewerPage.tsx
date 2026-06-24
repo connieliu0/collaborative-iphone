@@ -62,14 +62,21 @@ export function FrameContent({
   showCaption = true,
   variant = 'default',
   overlayCaption = true,
+  imageFit = 'contain',
+  solidCaptionBackground = false,
 }: {
   frame: FrameDisplay
   showCaption?: boolean
   variant?: 'default' | 'preview'
   /** When false, caption appears only in the bottom strip (if showCaption), not overlaid on the image. */
   overlayCaption?: boolean
+  /** 'natural' keeps the image's original aspect ratio without cropping to a fixed box. */
+  imageFit?: 'contain' | 'natural'
+  /** White text on solid black background (better for thermal print dithering). */
+  solidCaptionBackground?: boolean
 }) {
   const isPreview = variant === 'preview'
+  const naturalSize = imageFit === 'natural'
   const resolvedFontFamily =
     frame.font_family != null
       ? FONT_FAMILY_OPTIONS[frame.font_family] ?? frame.font_family
@@ -85,15 +92,26 @@ export function FrameContent({
   return (
     <div
       className={[
-        'relative w-full flex-1 min-h-0 flex flex-col rounded-lg overflow-hidden',
+        'relative w-full flex flex-col rounded-lg overflow-hidden',
+        naturalSize ? '' : 'flex-1 min-h-0',
         isPreview ? 'bg-black border border-black' : 'bg-gray-200 border border-gray-200',
       ].join(' ')}
     >
-      <div className="relative w-full flex-1 min-h-0 flex items-center justify-center">
+      <div
+        className={
+          naturalSize
+            ? 'relative w-full'
+            : 'relative w-full flex-1 min-h-0 flex items-center justify-center'
+        }
+      >
         <img
           src={frame.image_url}
           alt=""
-          className="max-w-full max-h-full w-full h-full object-contain block"
+          className={
+            naturalSize
+              ? 'w-full h-auto block'
+              : 'max-w-full max-h-full w-full h-full object-contain block'
+          }
           draggable={false}
         />
         {/* Render caption as an overlay on the image (we removed the dedicated overlay_text column). */}
@@ -115,11 +133,20 @@ export function FrameContent({
               className="whitespace-pre-wrap break-words text-center"
               style={{
                 fontFamily: resolvedFontFamily,
-                // Mimics an "outside stroke" outline (CSS text-stroke can’t be outside-only).
-                textShadow:
-                  '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85), ' +
-                  '0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85), ' +
-                  '1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
+                ...(solidCaptionBackground
+                  ? {
+                      backgroundColor: '#000000',
+                      color: '#ffffff',
+                      padding: '6px 10px',
+                      lineHeight: 1.2,
+                    }
+                  : {
+                      // Mimics an "outside stroke" outline (CSS text-stroke can’t be outside-only).
+                      textShadow:
+                        '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85), ' +
+                        '0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85), ' +
+                        '1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
+                    }),
               }}
             >
               {frame.caption}

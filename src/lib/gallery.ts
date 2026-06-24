@@ -90,12 +90,11 @@ export async function updateDisplayState(currentImageId: string | null): Promise
 }
 
 export async function uploadStagedImage(file: File, sessionId: string): Promise<string> {
-  const ext = file.name.split('.').pop() || 'jpg'
-  const path = `staged/${sessionId}/${Date.now()}.${ext}`
+  const path = `staged/${sessionId}/${Date.now()}.jpg`
 
   const { error: uploadError } = await supabase.storage
     .from(GALLERY_BUCKET)
-    .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+    .upload(path, file, { upsert: true, contentType: 'image/jpeg' })
 
   if (uploadError) throw uploadError
 
@@ -129,6 +128,15 @@ export async function confirmGalleryUpload(
 
   if (error) throw error
   return data as GalleryImage
+}
+
+export async function updateGalleryCaption(id: string, caption: string): Promise<void> {
+  const { error } = await supabase
+    .from('gallery_images')
+    .update({ caption })
+    .eq('id', id)
+
+  if (error) throw error
 }
 
 export async function cancelQueueEntry(queueId: string): Promise<void> {
@@ -229,8 +237,8 @@ export async function fetchPrintJob(id: string): Promise<PrintJob | null> {
 
 export async function generateCaption(params: {
   uploadedImageUrl: string
-  beforeImageUrl?: string | null
-  afterImageUrl?: string | null
+  beforeCaption?: string | null
+  afterCaption?: string | null
 }): Promise<string> {
   const { data, error } = await supabase.functions.invoke('generate-caption', {
     body: params,

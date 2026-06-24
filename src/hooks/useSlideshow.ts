@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { updateDisplayState, type GalleryImage } from '../lib/gallery'
 
-const SLIDE_INTERVAL_MS = 5000
+const SLIDE_INTERVAL_MS = 3000
 
 export function useSlideshow(images: GalleryImage[], broadcast = false) {
   const [index, setIndex] = useState(0)

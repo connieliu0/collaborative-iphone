@@ -1,16 +1,27 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const DEFAULT_MODEL = 'claude-haiku-4-20250514'
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+
+const SYSTEM_PROMPT =
+  'You are a poetic narrator weaving a continuous story from images. ' +
+  'When given an image and its position in the story, write exactly 4-8 words — ' +
+  'never descriptive, always evocative. If fragments exist before and after, interpolate. ' +
+  'If only before, continue. If neither, begin. Maintain a single coherent emotional thread ' +
+  'across all fragments. Return only the caption text, no quotes.'
+
+const MAX_WORDS = 8
 
 interface CaptionRequest {
   uploadedImageUrl: string
-  beforeImageUrl?: string | null
-  afterImageUrl?: string | null
+  beforeCaption?: string | null
+  afterCaption?: string | null
 }
 
 type AnthropicContentBlock =
@@ -20,33 +31,80 @@ type AnthropicContentBlock =
       source: { type: 'base64'; media_type: string; data: string }
     }
 
+function normalizeImageUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== 'string') return null
+  const trimmed = url.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+async function downloadFromStorage(
+  url: string
+): Promise<{ data: ArrayBuffer; mediaType: string } | null> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!supabaseUrl || !serviceKey) return null
+
+  const match = url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/)
+  if (!match) return null
+
+  const [, bucket, path] = match
+  const supabase = createClient(supabaseUrl, serviceKey)
+  const { data, error } = await supabase.storage.from(bucket).download(path)
+  if (error || !data) return null
+
+  const mediaType = data.type || 'image/jpeg'
+  return { data: await data.arrayBuffer(), mediaType }
+}
+
 async function imageUrlToBase64(url: string): Promise<{ data: string; mediaType: string }> {
+  const fromStorage = await downloadFromStorage(url)
+  if (fromStorage) {
+    return {
+      data: arrayBufferToBase64(fromStorage.data),
+      mediaType: fromStorage.mediaType.split(';')[0].trim() || 'image/jpeg',
+    }
+  }
+
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Failed to fetch image: ${url}`)
 
   const contentType = res.headers.get('content-type') ?? 'image/jpeg'
   const mediaType = contentType.split(';')[0].trim() || 'image/jpeg'
 
-  const buf = await res.arrayBuffer()
-  const bytes = new Uint8Array(buf)
-  let binary = ''
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-
-  return { data: btoa(binary), mediaType }
+  return { data: arrayBufferToBase64(await res.arrayBuffer()), mediaType }
 }
 
-function imageBlock(url: string, data: string, mediaType: string): AnthropicContentBlock {
+function imageBlock(data: string, mediaType: string): AnthropicContentBlock {
   return {
     type: 'image',
     source: { type: 'base64', media_type: mediaType, data },
   }
 }
 
+function normalizeCaption(caption: string | null | undefined): string | null {
+  if (!caption || typeof caption !== 'string') return null
+  const trimmed = caption.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function buildUserMessage(beforeCaption: string | null, afterCaption: string | null): string {
+  const prev = beforeCaption ?? '—'
+  const next = afterCaption ?? '—'
+  return `Fragment before: '${prev}' | Fragment after: '${next}' | Write this beat.`
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { status: 204, headers: corsHeaders })
   }
 
   try {
@@ -57,37 +115,19 @@ serve(async (req) => {
 
     const model = Deno.env.get('ANTHROPIC_MODEL') ?? DEFAULT_MODEL
     const body: CaptionRequest = await req.json()
-    const { uploadedImageUrl, beforeImageUrl, afterImageUrl } = body
+    const uploadedImageUrl = normalizeImageUrl(body.uploadedImageUrl)
+    const beforeCaption = normalizeCaption(body.beforeCaption)
+    const afterCaption = normalizeCaption(body.afterCaption)
 
     if (!uploadedImageUrl) {
       throw new Error('uploadedImageUrl is required')
     }
 
-    const content: AnthropicContentBlock[] = [
-      {
-        type: 'text',
-        text:
-          'Write a poetic caption for the MAIN image (the one being added). ' +
-          'Under 10 words. It should feel related to the images before and after it in a sequence. ' +
-          'Return only the caption text, no quotes.',
-      },
-    ]
-
-    if (beforeImageUrl) {
-      const before = await imageUrlToBase64(beforeImageUrl)
-      content.push({ type: 'text', text: 'Image BEFORE in sequence:' })
-      content.push(imageBlock(beforeImageUrl, before.data, before.mediaType))
-    }
-
     const main = await imageUrlToBase64(uploadedImageUrl)
-    content.push({ type: 'text', text: 'MAIN image to caption:' })
-    content.push(imageBlock(uploadedImageUrl, main.data, main.mediaType))
-
-    if (afterImageUrl) {
-      const after = await imageUrlToBase64(afterImageUrl)
-      content.push({ type: 'text', text: 'Image AFTER in sequence:' })
-      content.push(imageBlock(afterImageUrl, after.data, after.mediaType))
-    }
+    const content: AnthropicContentBlock[] = [
+      { type: 'text', text: buildUserMessage(beforeCaption, afterCaption) },
+      imageBlock(main.data, main.mediaType),
+    ]
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -99,6 +139,7 @@ serve(async (req) => {
       body: JSON.stringify({
         model,
         max_tokens: 40,
+        system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content }],
       }),
     })
@@ -116,8 +157,8 @@ serve(async (req) => {
     caption = caption.replace(/^["']|["']$/g, '')
 
     const words = caption.split(/\s+/).filter(Boolean)
-    if (words.length > 10) {
-      caption = words.slice(0, 10).join(' ')
+    if (words.length > MAX_WORDS) {
+      caption = words.slice(0, MAX_WORDS).join(' ')
     }
 
     return new Response(JSON.stringify({ caption }), {

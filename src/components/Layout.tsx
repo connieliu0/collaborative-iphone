@@ -7,6 +7,8 @@ import { useAuthModal } from '../contexts/AuthModalContext'
 const isFullscreenPath = (pathname: string) =>
   /^\/comic\/[^/]+$/.test(pathname) || /^\/session\/[^/]+\/visualizer$/.test(pathname)
 
+const isGalleryPath = (pathname: string) => /^\/gallery(?:\/|$)/.test(pathname)
+
 export function Layout({ children }: { children?: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
   const { openAuthModal } = useAuthModal()
@@ -57,7 +59,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
         </div>
       )}
       <main className="flex-1 w-full min-w-0 max-w-[640px] mx-auto px-4 py-6 box-border">
-        {!authLoading && !user && (
+        {!authLoading && !user && !isGalleryPath(location.pathname) && (
           <div className="flex items-center justify-end mb-4">
             <button
               type="button"

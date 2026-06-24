@@ -1,0 +1,7 @@
+# Supabase local/dev config. Deploy with:
+#   npx supabase login
+#   npx supabase functions deploy generate-caption --project-ref nxouqklknmvrrtdbjlqb
+#   npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-... --project-ref nxouqklknmvrrtdbjlqb
+
+[functions.generate-caption]
+verify_jwt = false
