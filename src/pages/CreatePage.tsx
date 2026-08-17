@@ -419,7 +419,7 @@ function SortableListItem({
     }
   }, [isEditingCaption, frame.id, onFocus])
 
-  const baseText = frame.caption.trim() || frame.overlayText.trim()
+  const baseText = frame.caption.trim()
   const displayText = baseText || 'Add a caption...'
 
   return (
@@ -715,7 +715,7 @@ function FeedView({
                   <span className="text-gray-500">+ add photo</span>
                 </div>
               )}
-              {(frame.caption || frame.overlayText) && (
+              {frame.caption && (
                 <div
                   className="absolute bottom-4 left-4 right-4 leading-snug text-center"
                   style={{
@@ -725,7 +725,7 @@ function FeedView({
                     textShadow: textOverlayShadow,
                   }}
                 >
-                  {frame.caption || frame.overlayText}
+                  {frame.caption}
                 </div>
               )}
             </div>
@@ -1084,10 +1084,10 @@ export function CreatePage() {
                   frame={editingFeedFrame}
                   onClose={() => setEditingFeedFrame(null)}
                   onCaptionChange={(id, caption) => {
-                    updateFrame(id, { caption, overlayText: caption })
+                    updateFrame(id, { caption })
                     const updated = frames.find((f) => f.id === id)
                     if (updated) {
-                      setEditingFeedFrame({ ...updated, caption, overlayText: caption })
+                      setEditingFeedFrame({ ...updated, caption })
                     }
                   }}
                 />
@@ -1125,7 +1125,7 @@ export function CreatePage() {
                           index < frames.length
                         }
                         onCaptionChange={(id, caption) =>
-                          updateFrame(id, { caption, overlayText: caption })
+                          updateFrame(id, { caption })
                         }
                         onFocus={setFocusedFrameId}
                         onBlur={() => setFocusedFrameId(null)}
@@ -1175,7 +1175,7 @@ export function CreatePage() {
                         index > 0
                       }
                       onCaptionChange={(id, caption) =>
-                        updateFrame(id, { caption, overlayText: caption })
+                        updateFrame(id, { caption })
                       }
                       onFocus={setFocusedFrameId}
                       onBlur={() => setFocusedFrameId(null)}

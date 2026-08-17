@@ -15,7 +15,6 @@ export interface ComicFrame {
   imageUrl: string
   websiteUrl?: string
   caption: string
-  overlayText: string
   overlayPosition: OverlayPosition
   textMode: TextMode
   fontSize: number
@@ -34,7 +33,6 @@ function createFrame(file: File, fontFamily: FontFamilyId): ComicFrame {
     imageUrl: URL.createObjectURL(file),
     websiteUrl: undefined,
     caption: '',
-    overlayText: '',
     overlayPosition: { ...defaultOverlayPosition },
     textMode: 'caption',
     fontSize: 18,
@@ -50,7 +48,6 @@ export function createEmptyFrame(fontFamily: FontFamilyId = 'Arial'): ComicFrame
     imageUrl: '',
     websiteUrl: undefined,
     caption: '',
-    overlayText: '',
     overlayPosition: { ...defaultOverlayPosition },
     textMode: 'caption',
     fontSize: 18,

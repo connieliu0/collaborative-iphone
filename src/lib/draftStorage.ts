@@ -9,7 +9,6 @@ const IDB_KEY = 'current'
 export interface DraftFrameMeta {
   id: string
   caption: string
-  overlayText: string
   overlayPosition: OverlayPosition
   textMode: ComicFrame['textMode']
   fontSize: number

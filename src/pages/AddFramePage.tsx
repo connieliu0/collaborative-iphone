@@ -28,7 +28,6 @@ export function AddFramePage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
-  const [overlayText, setOverlayText] = useState('')
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>({ ...defaultOverlay })
   const [fontSize, setFontSize] = useState(18)
   const [fontColor, setFontColor] = useState('#ffffff')
@@ -141,7 +140,6 @@ export function AddFramePage() {
     const payload: AddFramePayload = {
       imageFile,
       caption,
-      overlayText,
       overlay_x: overlayPosition.x,
       overlay_y: overlayPosition.y,
       font_size: fontSize,
@@ -171,7 +169,6 @@ export function AddFramePage() {
     comic,
     imageFile,
     caption,
-    overlayText,
     overlayPosition,
     fontSize,
     fontColor,
@@ -301,11 +298,11 @@ export function AddFramePage() {
                 className="w-full h-full object-cover block"
                 draggable={false}
               />
-              {overlayText.trim() ? (
+              {caption.trim() ? (
                 <div
                   ref={overlayBoxRef}
                   role="img"
-                  aria-label="Overlay text"
+                  aria-label="Caption overlay"
                   className="absolute cursor-grab active:cursor-grabbing select-none touch-none border-2 border-gray-400 rounded-lg p-2 min-w-[60px] min-h-[32px] flex items-center justify-center shadow-lg bg-black/30"
                   style={{
                     left: `${overlayPosition.x}%`,
@@ -323,7 +320,7 @@ export function AddFramePage() {
                   onPointerCancel={handleOverlayPointerUp}
                 >
                   <span className="pointer-events-none whitespace-pre-wrap break-words text-center">
-                    {overlayText}
+                    {caption}
                   </span>
                 </div>
               ) : null}
@@ -333,27 +330,13 @@ export function AddFramePage() {
 
         <div>
           <label htmlFor="add-caption" className="block text-xs text-gray-500 mb-1">
-            Caption
+            Caption (drag to position on image)
           </label>
           <textarea
             id="add-caption"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Add a caption..."
-            rows={2}
-            className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-gray-400"
-          />
-        </div>
-
-        <div>
-          <label htmlFor="add-overlay" className="block text-xs text-gray-500 mb-1">
-            Overlay text
-          </label>
-          <textarea
-            id="add-overlay"
-            value={overlayText}
-            onChange={(e) => setOverlayText(e.target.value)}
-            placeholder="Add overlay text..."
             rows={2}
             className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-gray-400"
           />

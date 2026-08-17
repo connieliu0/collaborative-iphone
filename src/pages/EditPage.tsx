@@ -311,9 +311,9 @@ export function EditPage() {
                 >
                   <textarea
                     ref={overlayInputRef}
-                    value={frame.overlayText}
+                    value={frame.caption}
                     onChange={(e) => {
-                      updateFrame(frame.id, { overlayText: e.target.value, caption: e.target.value })
+                      updateFrame(frame.id, { caption: e.target.value })
                       const el = e.target
                       el.style.height = 'auto'
                       el.style.height = `${Math.max(28, el.scrollHeight)}px`
@@ -383,7 +383,7 @@ export function EditPage() {
                       ' 1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
                   }}
                 >
-                  {frame.overlayText.trim() || PLACEHOLDER_TEXT}
+                  {frame.caption.trim() || PLACEHOLDER_TEXT}
                 </span>
                 <svg
                   className="absolute bottom-0 right-0 w-4 h-4 text-gray-500 pointer-events-none"

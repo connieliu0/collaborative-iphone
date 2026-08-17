@@ -20,7 +20,6 @@ function storedToFrame(d: DraftFrameStored): ComicFrame {
     imageFile: null,
     imageUrl: URL.createObjectURL(d.imageBlob),
     caption: d.caption,
-    overlayText: d.overlayText,
     overlayPosition: { ...d.overlayPosition },
     textMode: d.textMode,
     fontSize: d.fontSize,
@@ -53,7 +52,6 @@ async function framesToDraftPayload(
     draftFrames.push({
       id: frame.id,
       caption: frame.caption,
-      overlayText: frame.overlayText,
       overlayPosition: { ...frame.overlayPosition },
       textMode: frame.textMode,
       fontSize: frame.fontSize,
@@ -104,7 +102,6 @@ export function useDraftPersistence(user: unknown, authLoading: boolean): void {
             frames: legacy.frames.map((f, i) => ({
               id: f.id,
               caption: f.caption,
-              overlayText: f.overlayText,
               overlayPosition: f.overlayPosition,
               textMode: f.textMode,
               fontSize: f.fontSize,
