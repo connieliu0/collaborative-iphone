@@ -5,31 +5,20 @@ export type ComicFlowHeaderVariant = 'create' | 'edit'
 
 export interface ComicFlowHeaderProps {
   variant: ComicFlowHeaderVariant
-  onPublish: () => void
-  publishing: boolean
   leftContent?: React.ReactNode
-  title?: string
-  onTitleChange?: (title: string) => void
-  /** When true, hide Preview and Publish actions entirely. */
+  /** When true, hide Preview entirely. */
   hideActions?: boolean
   /** When true, Preview link is disabled (e.g. no frames yet on create). */
   previewDisabled?: boolean
-  /** When true, Publish button is disabled. */
-  publishDisabled?: boolean
-  /** Shown before the title field (e.g. grid/list toggle on create). */
+  /** Shown before Preview (e.g. grid/list toggle on create). */
   leadingActions?: React.ReactNode
 }
 
 export function ComicFlowHeader({
   variant,
-  onPublish,
-  publishing,
   leftContent,
-  title,
-  onTitleChange,
   hideActions = false,
   previewDisabled = false,
-  publishDisabled = false,
   leadingActions,
 }: ComicFlowHeaderProps) {
   const { user } = useAuth()
@@ -51,36 +40,16 @@ export function ComicFlowHeader({
 
         <div className="flex flex-nowrap items-center justify-end gap-x-2 sm:gap-x-3 ml-auto shrink-0 text-sm text-gray-900">
           {leadingActions}
-          {title != null && onTitleChange && (
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => onTitleChange(e.target.value)}
-              maxLength={120}
-              className="min-h-[32px] w-[100px] sm:w-[120px] md:w-[140px] shrink-0 px-2 rounded border border-gray-300 bg-white text-left text-sm text-gray-900"
-              aria-label="Comic title"
-            />
-          )}
           {!hideActions && (
-            <>
-              <Link
-                to="/preview"
-                className="btn-primary shrink-0"
-                aria-disabled={previewDisabled}
-                onClick={(e) => previewDisabled && e.preventDefault()}
-                style={previewDisabled ? { pointerEvents: 'none' as const, opacity: 0.6 } : undefined}
-              >
-                Preview
-              </Link>
-              <button
-                type="button"
-                onClick={onPublish}
-                disabled={publishing || publishDisabled}
-                className="btn-primary shrink-0"
-              >
-                {publishing ? 'Publishing...' : 'Publish'}
-              </button>
-            </>
+            <Link
+              to="/preview"
+              className="btn-primary shrink-0"
+              aria-disabled={previewDisabled}
+              onClick={(e) => previewDisabled && e.preventDefault()}
+              style={previewDisabled ? { pointerEvents: 'none' as const, opacity: 0.6 } : undefined}
+            >
+              Preview
+            </Link>
           )}
           {user && (
             <Link

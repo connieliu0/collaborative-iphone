@@ -20,7 +20,7 @@ export function CaptionOverlay({ caption, fontSize }: { caption: string; fontSiz
     >
       <span
         className="whitespace-pre-wrap break-words text-center font-bold text-white bg-black px-[0.4em] py-[0.25em] leading-tight"
-        style={{ fontFamily: 'Arial, sans-serif' }}
+        style={{ fontFamily: 'Arial, Helvetica, sans-serif', fontWeight: 'bold' }}
       >
         {caption}
       </span>

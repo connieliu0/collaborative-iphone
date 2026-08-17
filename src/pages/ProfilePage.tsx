@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { deleteComic } from '../lib/deleteComic'
 import { useAuth } from '../hooks/useAuth'
@@ -20,7 +20,8 @@ function formatDate(iso: string) {
 }
 
 export function ProfilePage() {
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [comics, setComics] = useState<ProfileComic[]>([])
@@ -81,6 +82,11 @@ export function ProfilePage() {
     setDeletingId(null)
   }
 
+  const handleLogout = async () => {
+    await signOut()
+    navigate('/')
+  }
+
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center px-4">
@@ -122,7 +128,16 @@ export function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-gray-900">Your profile</h1>
+      <div className="flex items-center justify-between gap-4">
+        <h1 className="text-xl font-semibold text-gray-900">Your profile</h1>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="min-h-[36px] px-4 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+        >
+          Log out
+        </button>
+      </div>
       <p className="text-sm text-gray-600">
         {comics.length === 0 ? 'No comics yet.' : `You’ve published ${comics.length} comic${comics.length === 1 ? '' : 's'}.`}
       </p>

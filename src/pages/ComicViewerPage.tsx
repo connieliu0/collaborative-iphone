@@ -41,14 +41,11 @@ import { useAuth } from '../hooks/useAuth'
 
 const SWIPE_THRESHOLD_PX = 50
 
-const FONT_FAMILY_OPTIONS: Record<string, string> = {
-  Arial: 'Arial, sans-serif',
-  'Arial Narrow': '"Arial Narrow", Arial, sans-serif',
-  'News Cycle': '"News Cycle", sans-serif',
-}
+const CAPTION_FONT_FAMILY = 'Arial, Helvetica, sans-serif'
 
 export interface FrameDisplay {
   image_url: string
+  website_url?: string
   caption: string
   overlay_x: number
   overlay_y: number
@@ -77,10 +74,6 @@ export function FrameContent({
 }) {
   const isPreview = variant === 'preview'
   const naturalSize = imageFit === 'natural'
-  const resolvedFontFamily =
-    frame.font_family != null
-      ? FONT_FAMILY_OPTIONS[frame.font_family] ?? frame.font_family
-      : '"News Cycle", sans-serif'
 
   // When we render the frame text as an "overlay on the image", bias the position
   // toward the lower half by default (many existing frames default to overlay_y=50).
@@ -104,16 +97,33 @@ export function FrameContent({
             : 'relative w-full flex-1 min-h-0 flex items-center justify-center'
         }
       >
-        <img
-          src={frame.image_url}
-          alt=""
-          className={
-            naturalSize
-              ? 'w-full h-auto block'
-              : 'max-w-full max-h-full w-full h-full object-contain block'
-          }
-          draggable={false}
-        />
+        {frame.website_url ? (
+          <iframe
+            src={frame.website_url}
+            title="Website preview"
+            className={
+              naturalSize
+                ? 'w-full h-auto block'
+                : isPreview
+                  ? 'w-full h-full object-cover block'
+                  : 'max-w-full max-h-full w-full h-full object-contain block'
+            }
+            sandbox="allow-scripts allow-same-origin"
+          />
+        ) : (
+          <img
+            src={frame.image_url}
+            alt=""
+            className={
+              naturalSize
+                ? 'w-full h-auto block'
+                : isPreview
+                  ? 'w-full h-full object-cover block'
+                  : 'max-w-full max-h-full w-full h-full object-contain block'
+            }
+            draggable={false}
+          />
+        )}
         {/* Render caption as an overlay on the image (we removed the dedicated overlay_text column). */}
         {overlayCaption && frame.caption.trim() ? (
           <div
@@ -132,8 +142,9 @@ export function FrameContent({
             <span
               className="whitespace-pre-wrap break-words text-center"
               style={{
-                fontFamily: resolvedFontFamily,
-                ...(solidCaptionBackground
+                fontFamily: CAPTION_FONT_FAMILY,
+                fontWeight: 'bold',
+                ...(solidCaptionBackground || frame.website_url
                   ? {
                       backgroundColor: '#000000',
                       color: '#ffffff',
@@ -157,7 +168,11 @@ export function FrameContent({
       {showCaption && frame.caption.trim() ? (
         <div
           className="w-full bg-gray-800 text-white px-3 py-2 shrink-0 text-center text-sm"
-          style={{ fontSize: `${frame.font_size}px` }}
+          style={{
+            fontSize: `${frame.font_size}px`,
+            fontFamily: CAPTION_FONT_FAMILY,
+            fontWeight: 'bold',
+          }}
         >
           {frame.caption}
         </div>
@@ -366,10 +381,10 @@ export function ComicViewerPage() {
             type="button"
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/20 backdrop-blur-sm text-gray-900 hover:bg-black/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
             aria-label="Previous frame"
           >
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-7 h-7 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -377,10 +392,10 @@ export function ComicViewerPage() {
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/20 backdrop-blur-sm text-gray-900 hover:bg-black/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
             aria-label="Next frame"
           >
-            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-7 h-7 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>

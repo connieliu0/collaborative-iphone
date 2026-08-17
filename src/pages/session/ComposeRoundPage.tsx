@@ -219,7 +219,7 @@ export function ComposeRoundPage() {
         overlay_y: 90,
         font_size: 18,
         font_color: '#ffffff',
-        font_family: 'News Cycle',
+        font_family: 'Arial',
       })),
     [frames]
   )

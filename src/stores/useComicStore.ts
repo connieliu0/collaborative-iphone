@@ -13,6 +13,7 @@ export interface ComicFrame {
   id: string
   imageFile: File | null
   imageUrl: string
+  websiteUrl?: string
   caption: string
   overlayText: string
   overlayPosition: OverlayPosition
@@ -31,6 +32,7 @@ function createFrame(file: File, fontFamily: FontFamilyId): ComicFrame {
     id: crypto.randomUUID(),
     imageFile: file,
     imageUrl: URL.createObjectURL(file),
+    websiteUrl: undefined,
     caption: '',
     overlayText: '',
     overlayPosition: { ...defaultOverlayPosition },
@@ -41,11 +43,12 @@ function createFrame(file: File, fontFamily: FontFamilyId): ComicFrame {
   }
 }
 
-export function createEmptyFrame(fontFamily: FontFamilyId = 'News Cycle'): ComicFrame {
+export function createEmptyFrame(fontFamily: FontFamilyId = 'Arial'): ComicFrame {
   return {
     id: crypto.randomUUID(),
     imageFile: null,
     imageUrl: '',
+    websiteUrl: undefined,
     caption: '',
     overlayText: '',
     overlayPosition: { ...defaultOverlayPosition },
@@ -87,7 +90,7 @@ export const useComicStore = create<ComicState>((set) => ({
       const remaining = MAX_FRAMES - state.frames.length
       if (remaining <= 0) return state
       // Inherit the currently selected font so new uploads keep the user's choice.
-      const currentFontFamily: FontFamilyId = state.frames[0]?.fontFamily ?? 'News Cycle'
+      const currentFontFamily: FontFamilyId = state.frames[0]?.fontFamily ?? 'Arial'
       const toAdd = files.slice(0, remaining)
       const newFrames = toAdd.map((file) => createFrame(file, currentFontFamily))
       return { frames: [...state.frames, ...newFrames] }
@@ -98,7 +101,7 @@ export const useComicStore = create<ComicState>((set) => ({
     let createdId: string | null = null
     set((state) => {
       if (state.frames.length >= MAX_FRAMES) return state
-      const currentFontFamily: FontFamilyId = state.frames[0]?.fontFamily ?? 'News Cycle'
+      const currentFontFamily: FontFamilyId = state.frames[0]?.fontFamily ?? 'Arial'
       const frame = createEmptyFrame(currentFontFamily)
       createdId = frame.id
       return { frames: [...state.frames, frame] }

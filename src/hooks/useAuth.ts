@@ -7,6 +7,7 @@ export interface UseAuthResult {
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>
+  signInWithGoogle: () => Promise<{ error: Error | null }>
   signInAnonymously: () => Promise<{ user: User | null; error: Error | null }>
   signOut: () => Promise<void>
 }
@@ -38,6 +39,16 @@ export function useAuth(): UseAuthResult {
     return { error: error ?? null }
   }
 
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    })
+    return { error: error ?? null }
+  }
+
   const signInAnonymously = async () => {
     const { data, error } = await supabase.auth.signInAnonymously()
     return { user: data?.user ?? null, error: error ?? null }
@@ -47,5 +58,5 @@ export function useAuth(): UseAuthResult {
     await supabase.auth.signOut()
   }
 
-  return { user, loading, signIn, signUp, signInAnonymously, signOut }
+  return { user, loading, signIn, signUp, signInWithGoogle, signInAnonymously, signOut }
 }

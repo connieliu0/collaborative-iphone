@@ -14,7 +14,7 @@ import {
   type SessionImageRow,
   type SessionPhraseRow,
 } from '../../lib/session'
-import { ensureJpeg } from '../../lib/heic'
+import { prepareImage } from '../../lib/prepareImage'
 
 const narrowFont: React.CSSProperties = { fontFamily: 'Arial Narrow, Arial, sans-serif' }
 
@@ -153,12 +153,12 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
     setSubmitError(null)
     setConverting(true)
     try {
-      const converted = await ensureJpeg(file)
-      if (!converted) throw new Error('Could not process image')
-      setSelectedFile(converted)
-      setPreview(URL.createObjectURL(converted))
+      const prepared = await prepareImage(file)
+      if (!prepared) throw new Error('Could not process image')
+      setSelectedFile(prepared)
+      setPreview(URL.createObjectURL(prepared))
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to convert image')
+      setSubmitError(err instanceof Error ? err.message : 'Failed to process image')
       setSelectedFile(null)
       if (preview) URL.revokeObjectURL(preview)
       setPreview(null)

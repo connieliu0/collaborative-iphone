@@ -5,7 +5,8 @@ import { useComic } from '../hooks/useComic'
 import { FrameContent } from './ComicViewerPage'
 import type { FrameRow } from '../hooks/useComic'
 import { addFrameToComic, type AddFramePayload } from '../lib/publish'
-import { ensureJpeg, isHeic } from '../lib/heic'
+import { isHeic } from '../lib/heic'
+import { prepareImage } from '../lib/prepareImage'
 import type { OverlayPosition } from '../stores/useComicStore'
 
 const FONT_SIZE_PRESETS = [14, 18, 24] as const
@@ -45,21 +46,17 @@ export function AddFramePage() {
       if (!file) return
       e.target.value = ''
       if (imageUrl) URL.revokeObjectURL(imageUrl)
-      if (isHeic(file)) {
-        setConvertingHeic(true)
-        setSubmitError(null)
-        try {
-          const jpeg = await ensureJpeg(file)
-          setImageFile(jpeg)
-          setImageUrl(URL.createObjectURL(jpeg))
-        } catch (err) {
-          setSubmitError(err instanceof Error ? err.message : 'Failed to convert HEIC image')
-        } finally {
-          setConvertingHeic(false)
-        }
-      } else {
-        setImageFile(file)
-        setImageUrl(URL.createObjectURL(file))
+      const needsConversion = isHeic(file)
+      if (needsConversion) setConvertingHeic(true)
+      setSubmitError(null)
+      try {
+        const prepared = await prepareImage(file)
+        setImageFile(prepared)
+        setImageUrl(URL.createObjectURL(prepared))
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : 'Failed to process image')
+      } finally {
+        if (needsConversion) setConvertingHeic(false)
       }
     },
     [imageUrl]
@@ -316,6 +313,7 @@ export function AddFramePage() {
                     transform: 'translate(-50%, -50%)',
                     fontSize: `${fontSize}px`,
                     color: fontColor,
+                    fontFamily: 'Arial, Helvetica, sans-serif',
                     fontWeight: 'bold',
                   }}
                   onPointerDown={handleOverlayPointerDown}

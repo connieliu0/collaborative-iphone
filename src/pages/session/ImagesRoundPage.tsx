@@ -4,7 +4,7 @@ import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import { advanceRound, submitImages, getSessionImages, type SessionImageRow } from '../../lib/session'
-import { ensureJpeg } from '../../lib/heic'
+import { prepareImage } from '../../lib/prepareImage'
 
 const REQUIRED_IMAGES = 3
 
@@ -76,20 +76,18 @@ export function ImagesRoundPage() {
     const files = e.target.files
     if (!files?.length) return
     const fileList = Array.from(files)
-    // Clear after copying the FileList so we don't accidentally empty it.
     e.target.value = ''
     const arr = fileList.slice(0, REQUIRED_IMAGES - selectedFiles.length)
     setSubmitError(null)
     setConvertingImages(true)
     try {
-      const converted = await Promise.all(arr.map((f) => ensureJpeg(f)))
+      const converted = await Promise.all(arr.map((f) => prepareImage(f)))
       const validFiles = converted.filter((f): f is File => f !== null)
       const newFiles = [...selectedFiles, ...validFiles].slice(0, REQUIRED_IMAGES)
       setSelectedFiles(newFiles)
       setPreviews(newFiles.map((f) => URL.createObjectURL(f)))
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Failed to convert selected images')
-      // If conversion fails, avoid leaving stale selection in UI.
+      setSubmitError(err instanceof Error ? err.message : 'Failed to process selected images')
       setSelectedFiles([])
       previews.forEach((u) => URL.revokeObjectURL(u))
       setPreviews([])

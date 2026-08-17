@@ -1,38 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { ComicFlowHeader } from '../components/ComicFlowHeader'
-import { PublishSuccessModal } from '../components/PublishSuccessModal'
-import { useAuthModal } from '../contexts/AuthModalContext'
-import { useAuth } from '../hooks/useAuth'
-import { ensureJpeg } from '../lib/heic'
-import { publishComic, updateComic } from '../lib/publish'
-import type { ComicFrame, FontFamilyId, OverlayPosition } from '../stores/useComicStore'
+import { prepareImage, getImagesFromClipboard } from '../lib/prepareImage'
+import type { ComicFrame, OverlayPosition } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
 
 const MAX_FRAMES = 12
 
 const PLACEHOLDER_TEXT = 'Your text here'
 
-const FONT_FAMILY_OPTIONS: { id: FontFamilyId; label: string; fontFamily: string }[] = [
-  { id: 'Arial', label: 'Arial', fontFamily: 'Arial, sans-serif' },
-  { id: 'Arial Narrow', label: 'Arial Narrow', fontFamily: '"Arial Narrow", Arial, sans-serif' },
-  { id: 'News Cycle', label: 'News Cycle', fontFamily: '"News Cycle", sans-serif' },
-]
-
-const PUBLISH_AUTH_MESSAGE = 'Create a free account to publish your comic'
+const overlayFontStyle: React.CSSProperties = {
+  fontFamily: 'Arial, Helvetica, sans-serif',
+  fontWeight: 'bold',
+}
 
 const btnPrimary = 'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 
 export function EditPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const frameId = searchParams.get('frame') ?? ''
-  const [publishing, setPublishing] = useState(false)
-  const [publishError, setPublishError] = useState<string | null>(null)
-  const [publishSuccessSlug, setPublishSuccessSlug] = useState<string | null>(null)
 
-  const { user } = useAuth()
-  const { openAuthModal } = useAuthModal()
-  const { frames, comicTitle, setComicTitle, addFrames, updateFrame, publishedComicId, setPublishedComic } = useComicStore()
+  const { frames, addFrames, updateFrame } = useComicStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const colorInputRef = useRef<HTMLInputElement>(null)
   const [processingFiles, setProcessingFiles] = useState(false)
@@ -174,7 +162,7 @@ export function EditPage() {
       const toProcess = fileList.slice(0, remaining)
       setProcessingFiles(true)
       try {
-        const converted = await Promise.all(toProcess.map((f) => ensureJpeg(f)))
+        const converted = await Promise.all(toProcess.map((f) => prepareImage(f)))
         addFrames(converted)
       } finally {
         setProcessingFiles(false)
@@ -187,25 +175,37 @@ export function EditPage() {
     fileInputRef.current?.click()
   }, [])
 
-  const handlePublish = async () => {
-    if (!user) {
-      openAuthModal(PUBLISH_AUTH_MESSAGE)
-      return
-    }
-    setPublishError(null)
-    setPublishing(true)
-    const publishFrames = frames.filter((f) => f.imageUrl)
-    const result = publishedComicId
-      ? await updateComic(publishedComicId, user.id, publishFrames, comicTitle)
-      : await publishComic(user.id, publishFrames, { mode: 'solo', title: comicTitle })
-    setPublishing(false)
-    if ('error' in result) {
-      setPublishError(result.error)
-      return
-    }
-    setPublishSuccessSlug(result.slug)
-    setPublishedComic({ slug: result.slug, comicId: result.comicId })
-  }
+  const handlePaste = useCallback(
+    async (e: ClipboardEvent) => {
+      const images = getImagesFromClipboard(e.clipboardData)
+      if (images.length === 0) return
+
+      e.preventDefault()
+      setProcessingFiles(true)
+      try {
+        const remaining = MAX_FRAMES - frames.length
+        if (frameId && frames.some((f) => f.id === frameId)) {
+          const converted = await prepareImage(images[0])
+          updateFrame(frameId, {
+            imageFile: converted,
+            imageUrl: URL.createObjectURL(converted),
+          })
+        } else {
+          const toProcess = images.slice(0, remaining)
+          const converted = await Promise.all(toProcess.map((f) => prepareImage(f)))
+          addFrames(converted)
+        }
+      } finally {
+        setProcessingFiles(false)
+      }
+    },
+    [frames, frameId, updateFrame, addFrames]
+  )
+
+  useEffect(() => {
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [handlePaste])
 
   if (frames.length === 0) {
     return (
@@ -245,13 +245,6 @@ export function EditPage() {
         </div>
       )}
 
-      {publishSuccessSlug && (
-        <PublishSuccessModal
-          slug={publishSuccessSlug}
-          onClose={() => setPublishSuccessSlug(null)}
-        />
-      )}
-
       <input
         ref={fileInputRef}
         type="file"
@@ -261,18 +254,7 @@ export function EditPage() {
         className="hidden"
         aria-label="Add more photos"
       />
-      <ComicFlowHeader
-        variant="edit"
-        onPublish={handlePublish}
-        publishing={publishing}
-        title={comicTitle}
-        onTitleChange={setComicTitle}
-      />
-      {publishError && (
-        <p className="text-sm text-red-600 mb-2" role="alert">
-          {publishError}
-        </p>
-      )}
+      <ComicFlowHeader variant="edit" />
 
       <section
         className="shrink-0 w-full relative rounded-lg overflow-hidden "
@@ -331,7 +313,7 @@ export function EditPage() {
                     ref={overlayInputRef}
                     value={frame.overlayText}
                     onChange={(e) => {
-                      updateFrame(frame.id, { overlayText: e.target.value })
+                      updateFrame(frame.id, { overlayText: e.target.value, caption: e.target.value })
                       const el = e.target
                       el.style.height = 'auto'
                       el.style.height = `${Math.max(28, el.scrollHeight)}px`
@@ -353,8 +335,7 @@ export function EditPage() {
                     style={{
                       fontSize: `${frame.fontSize}px`,
                       color: frame.fontColor,
-                      fontFamily: FONT_FAMILY_OPTIONS.find((f) => f.id === (frame.fontFamily ?? 'News Cycle'))?.fontFamily ?? '"News Cycle", sans-serif',
-                      fontWeight: 900,
+                      ...overlayFontStyle,
                       // `-webkit-text-stroke` renders on both inside/outside.
                       // This `text-shadow` outline renders behind the filled glyph
                       // so it mostly reads like an outside stroke.
@@ -392,8 +373,7 @@ export function EditPage() {
                   style={{
                     fontSize: `${frame.fontSize}px`,
                     color: frame.fontColor,
-                    fontFamily: FONT_FAMILY_OPTIONS.find((f) => f.id === (frame.fontFamily ?? 'News Cycle'))?.fontFamily ?? '"News Cycle", sans-serif',
-                    fontWeight: 900,
+                    ...overlayFontStyle,
                     // `-webkit-text-stroke` renders on both inside/outside.
                     // This `text-shadow` outline renders behind the filled glyph
                     // so it mostly reads like an outside stroke.

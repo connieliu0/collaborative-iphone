@@ -25,7 +25,7 @@ function storedToFrame(d: DraftFrameStored): ComicFrame {
     textMode: d.textMode,
     fontSize: d.fontSize,
     fontColor: d.fontColor,
-    fontFamily: d.fontFamily ?? 'News Cycle',
+    fontFamily: d.fontFamily ?? 'Arial',
   }
 }
 

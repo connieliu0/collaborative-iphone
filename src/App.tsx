@@ -23,6 +23,7 @@ import { AdminPage } from './pages/session/AdminPage'
 import { GalleryDisplayPage } from './pages/gallery/GalleryDisplayPage'
 import { GalleryUploadPage } from './pages/gallery/GalleryUploadPage'
 import { GalleryResultPage } from './pages/gallery/GalleryResultPage'
+import { SessionEntryPage } from './pages/session/SessionEntryPage'
 
 export function App() {
   return (
@@ -58,6 +59,11 @@ export function App() {
           />
           <Route path="/publish" element={<PublishPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+
+          {/* Hidden session entry points — not linked from the home page */}
+          <Route path="/host" element={<SessionEntryPage mode="host" />} />
+          <Route path="/performance" element={<SessionEntryPage mode="performance" />} />
+          <Route path="/join" element={<SessionEntryPage mode="join" />} />
 
           {/* Session / Collab Mode */}
           <Route path="/session/:code" element={<LobbyPage />} />

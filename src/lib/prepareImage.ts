@@ -1,12 +1,55 @@
-import { ensureJpeg } from './heic'
+import { ensureJpeg, isImageFile } from './heic'
 
-const MAX_DIMENSION = 800
-const JPEG_QUALITY = 0.8
+export interface PrepareImageOptions {
+  maxDimension?: number
+  quality?: number
+}
+
+const DEFAULT_MAX_DIMENSION = 1600
+const DEFAULT_QUALITY = 0.82
+const GALLERY_MAX_DIMENSION = 800
+const GALLERY_QUALITY = 0.8
+
+/**
+ * Unified image preparation: HEIC → JPEG, resize to max dimension, compress.
+ * Default: 1600px max dimension, 0.82 quality (good balance of size/quality for comics).
+ */
+export async function prepareImage(
+  file: File,
+  options: PrepareImageOptions = {}
+): Promise<File> {
+  const maxDimension = options.maxDimension ?? DEFAULT_MAX_DIMENSION
+  const quality = options.quality ?? DEFAULT_QUALITY
+
+  const jpeg = await ensureJpeg(file)
+  return resizeToJpeg(jpeg, maxDimension, quality)
+}
 
 /** Resize and compress for gallery upload. HEIC → JPEG, max 800px on longest side. */
 export async function prepareGalleryUpload(file: File): Promise<File> {
-  const jpeg = await ensureJpeg(file)
-  return resizeToJpeg(jpeg, MAX_DIMENSION, JPEG_QUALITY)
+  return prepareImage(file, {
+    maxDimension: GALLERY_MAX_DIMENSION,
+    quality: GALLERY_QUALITY,
+  })
+}
+
+/**
+ * Extract image files from clipboard data (paste event).
+ * Returns array of image Files found in the clipboard.
+ */
+export function getImagesFromClipboard(clipboardData: DataTransfer | null): File[] {
+  if (!clipboardData) return []
+
+  const files: File[] = []
+  for (const item of Array.from(clipboardData.items)) {
+    if (item.kind === 'file') {
+      const file = item.getAsFile()
+      if (file && isImageFile(file)) {
+        files.push(file)
+      }
+    }
+  }
+  return files
 }
 
 async function resizeToJpeg(
@@ -16,7 +59,14 @@ async function resizeToJpeg(
 ): Promise<File> {
   const bitmap = await createImageBitmap(file)
   const { width, height } = bitmap
-  const scale = Math.min(1, maxDimension / Math.max(width, height))
+
+  const longestSide = Math.max(width, height)
+  if (longestSide <= maxDimension && file.type === 'image/jpeg') {
+    bitmap.close()
+    return file
+  }
+
+  const scale = Math.min(1, maxDimension / longestSide)
   const w = Math.max(1, Math.round(width * scale))
   const h = Math.max(1, Math.round(height * scale))
 
