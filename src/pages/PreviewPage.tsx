@@ -21,8 +21,11 @@ export function PreviewPage() {
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishSuccessSlug, setPublishSuccessSlug] = useState<string | null>(null)
+  const [showTitleModal, setShowTitleModal] = useState(false)
+  const [titleInput, setTitleInput] = useState('')
   const swipeStartRef = useRef<{ x: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const collabSessionCode =
     typeof window !== 'undefined' ? window.sessionStorage.getItem('collabSessionCode') : null
 
@@ -87,17 +90,24 @@ export function PreviewPage() {
     [goPrev, goNext]
   )
 
-  const handlePublish = async () => {
+  const handlePublishClick = () => {
     if (!user) {
       openAuthModal(PUBLISH_AUTH_MESSAGE)
       return
     }
+    setTitleInput(comicTitle || '')
+    setShowTitleModal(true)
+  }
+
+  const handlePublish = async () => {
+    setShowTitleModal(false)
     setPublishError(null)
     setPublishing(true)
     const publishFrames = frames.filter((frame) => frame.imageUrl)
+    const finalTitle = titleInput.trim() || 'Comic Title'
     const result = publishedComicId
-      ? await updateComic(publishedComicId, user.id, publishFrames, comicTitle)
-      : await publishComic(user.id, publishFrames, { mode: 'solo', title: comicTitle })
+      ? await updateComic(publishedComicId, user!.id, publishFrames, finalTitle)
+      : await publishComic(user!.id, publishFrames, { mode: 'solo', title: finalTitle })
     setPublishing(false)
     if ('error' in result) {
       setPublishError(result.error)
@@ -106,6 +116,13 @@ export function PreviewPage() {
     setPublishSuccessSlug(result.slug)
     setPublishedComic({ slug: result.slug, comicId: result.comicId })
   }
+
+  useEffect(() => {
+    if (showTitleModal && titleInputRef.current) {
+      titleInputRef.current.focus()
+      titleInputRef.current.select()
+    }
+  }, [showTitleModal])
 
   const canGoPrev = currentIndex > 0
   const canGoNext = currentIndex < displayFrames.length - 1
@@ -148,10 +165,54 @@ export function PreviewPage() {
         />
       )}
 
+      {showTitleModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowTitleModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">What do you want to title your comic?</h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                handlePublish()
+              }}
+            >
+              <input
+                ref={titleInputRef}
+                type="text"
+                value={titleInput}
+                onChange={(e) => setTitleInput(e.target.value)}
+                placeholder="Comic Title"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+              />
+              <div className="mt-4 flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowTitleModal(false)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Publish
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <button
           type="button"
-          onClick={handlePublish}
+          onClick={handlePublishClick}
           disabled={publishing || !canPublish}
           className="btn-primary shrink-0"
         >
