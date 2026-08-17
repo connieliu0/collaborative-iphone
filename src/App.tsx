@@ -10,6 +10,7 @@ import { ComicViewerPage } from './pages/ComicViewerPage'
 import { AddFramePage } from './pages/AddFramePage'
 import { PublishPage } from './pages/PublishPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { LobbyPage } from './pages/session/LobbyPage'
 import { ImagesRoundPage } from './pages/session/ImagesRoundPage'
 import { PhrasesRoundPage } from './pages/session/PhrasesRoundPage'
@@ -59,6 +60,7 @@ export function App() {
           />
           <Route path="/publish" element={<PublishPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
           {/* Hidden session entry points — not linked from the home page */}
           <Route path="/host" element={<SessionEntryPage mode="host" />} />

@@ -44,6 +44,20 @@ async function blobUrlToFile(blobUrl: string, filename: string): Promise<File | 
   }
 }
 
+/** Fetch a remote URL and convert to a File for re-upload. */
+async function remoteUrlToFile(url: string, filename: string): Promise<File | null> {
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return null
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    const mime = blob.type || 'image/png'
+    return new File([blob], filename, { type: mime })
+  } catch {
+    return null
+  }
+}
+
 export type PublishResult = { slug: string; comicId: string } | { error: string }
 
 export interface PublishOptions {
@@ -130,6 +144,10 @@ export async function publishComic(
     }
     if (!file && frame.imageUrl.startsWith('blob:')) {
       file = await blobUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
+    }
+    // Handle remote URLs (e.g., from previously published comics being edited)
+    if (!file && (frame.imageUrl.startsWith('http://') || frame.imageUrl.startsWith('https://'))) {
+      file = await remoteUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
     }
     if (!file) {
       return { error: `Frame ${i + 1} has no image file` }
@@ -234,6 +252,10 @@ export async function updateComic(
     }
     if (!file && frame.imageUrl.startsWith('blob:')) {
       file = await blobUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
+    }
+    // Handle remote URLs (e.g., from previously published comics being edited)
+    if (!file && (frame.imageUrl.startsWith('http://') || frame.imageUrl.startsWith('https://'))) {
+      file = await remoteUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
     }
     if (!file) {
       return { error: `Frame ${i + 1} has no image file` }

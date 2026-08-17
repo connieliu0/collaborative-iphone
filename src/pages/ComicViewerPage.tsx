@@ -299,10 +299,9 @@ export function ComicViewerPage() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-gray-50 flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
-        <div className="flex-1 flex flex-col items-center justify-center w-full max-w-[640px] mx-auto px-4 py-4 animate-pulse">
-          <div className="w-full aspect-[4/3] max-h-[60vh] rounded-lg bg-gray-200" />
-          <div className="h-4 w-16 bg-gray-200 rounded mt-4 self-center" />
+      <div className="fixed inset-0 bg-black flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        <div className="flex-1 flex flex-col items-center justify-center w-full h-full px-0 py-0 animate-pulse">
+          <div className="w-full h-full rounded-lg bg-gray-800" />
         </div>
       </div>
     )
@@ -310,17 +309,17 @@ export function ComicViewerPage() {
 
   if (error || !comic) {
     return (
-      <div className="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center text-gray-900">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white">
         <Link
           to={backTo}
-          className="absolute top-4 left-4 z-10 p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="absolute top-4 left-4 z-10 p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back to home"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <p className="text-gray-600 text-center px-4">{error ?? 'Comic not found'}</p>
+        <p className="text-gray-300 text-center px-4">{error ?? 'Comic not found'}</p>
       </div>
     )
   }
@@ -328,7 +327,7 @@ export function ComicViewerPage() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 bg-gray-50 flex flex-col text-gray-900 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-0 bg-black flex flex-col text-white overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]"
       onKeyDown={onKeyDown}
       tabIndex={0}
       role="application"
@@ -338,7 +337,7 @@ export function ComicViewerPage() {
       <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between pointer-events-none">
         <Link
           to={backTo}
-          className="p-2 text-gray-600 hover:text-gray-900 rounded-full hover:bg-gray-200 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center pointer-events-auto"
+          className="p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center pointer-events-auto"
           aria-label="Back to home"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -353,23 +352,25 @@ export function ComicViewerPage() {
             type="button"
             onClick={handleEndComic}
             disabled={ending}
-            className="min-h-[36px] px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors pointer-events-auto disabled:opacity-50"
+            className="min-h-[36px] px-3 py-1.5 rounded-lg border border-gray-600 text-gray-200 text-sm font-medium hover:bg-gray-800 transition-colors pointer-events-auto disabled:opacity-50"
           >
             End Comic
           </button>
         )}
       </div>
 
-      {/* One frame, centered, max 640px */}
+      {/* One frame, full width */}
       <div
-        className="flex-1 flex flex-col items-center justify-center w-full max-w-[640px] mx-auto px-4 py-4"
+        className="flex-1 flex flex-col items-center justify-center w-full h-full px-0 py-0"
         onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onPointerLeave={onPointerUp}
         onPointerCancel={onPointerUp}
       >
         {currentFrame ? (
-          <FrameContent frame={currentFrame} showCaption={false} />
+          <div className="w-full h-full min-h-0 flex flex-col">
+            <FrameContent frame={currentFrame} showCaption={false} variant="preview" />
+          </div>
         ) : (
           <p className="text-gray-500">No frames</p>
         )}
@@ -381,7 +382,7 @@ export function ComicViewerPage() {
             type="button"
             onClick={goPrev}
             disabled={!canGoPrev}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/20 backdrop-blur-sm text-gray-900 hover:bg-black/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
             aria-label="Previous frame"
           >
             <svg className="w-7 h-7 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -392,7 +393,7 @@ export function ComicViewerPage() {
             type="button"
             onClick={goNext}
             disabled={!canGoNext}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-black/20 backdrop-blur-sm text-gray-900 hover:bg-black/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
             aria-label="Next frame"
           >
             <svg className="w-7 h-7 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +405,7 @@ export function ComicViewerPage() {
 
       {frames.length > 0 && (
         <div className="shrink-0 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-center gap-2">
-          <span className="text-sm text-gray-600 tabular-nums">
+          <span className="text-sm text-gray-300 tabular-nums">
             {currentIndex + 1} / {frames.length}
           </span>
         </div>

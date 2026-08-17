@@ -10,6 +10,8 @@ export interface UseAuthResult {
   signInWithGoogle: () => Promise<{ error: Error | null }>
   signInAnonymously: () => Promise<{ user: User | null; error: Error | null }>
   signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<{ error: Error | null }>
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>
 }
 
 export function useAuth(): UseAuthResult {
@@ -58,5 +60,19 @@ export function useAuth(): UseAuthResult {
     await supabase.auth.signOut()
   }
 
-  return { user, loading, signIn, signUp, signInWithGoogle, signInAnonymously, signOut }
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+    return { error: error ?? null }
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    })
+    return { error: error ?? null }
+  }
+
+  return { user, loading, signIn, signUp, signInWithGoogle, signInAnonymously, signOut, resetPassword, updatePassword }
 }

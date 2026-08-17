@@ -18,10 +18,16 @@ export function Layout({ children }: { children?: React.ReactNode }) {
   useEffect(() => {
     // Used by PreviewPage "back" behavior in collab mode.
     // Whenever we're on a collab session route, remember the session code.
+    // Clear it when navigating to solo flow paths so preview doesn't redirect to old sessions.
     if (typeof window === 'undefined') return
     const match = location.pathname.match(/^\/session\/([^/]+)(?:\/|$)/)
     const code = match?.[1]
-    if (code) window.sessionStorage.setItem('collabSessionCode', code)
+    if (code) {
+      window.sessionStorage.setItem('collabSessionCode', code)
+    } else if (/^\/(create|edit|preview)?\/?$/.test(location.pathname)) {
+      // User is in solo flow — clear any stale collab session reference
+      window.sessionStorage.removeItem('collabSessionCode')
+    }
   }, [location.pathname])
 
   useEffect(() => {

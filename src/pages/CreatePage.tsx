@@ -383,6 +383,7 @@ function SortableListItem({
   onCaptionChange,
   onFocus,
   onBlur,
+  onMultiLinePaste,
 }: {
   frame: ComicFrame
   index: number
@@ -397,6 +398,7 @@ function SortableListItem({
   onCaptionChange: (id: string, caption: string) => void
   onFocus?: (id: string) => void
   onBlur?: () => void
+  onMultiLinePaste?: (frameId: string, lines: string[]) => void
 }) {
   const {
     attributes,
@@ -534,6 +536,16 @@ function SortableListItem({
                   e.preventDefault()
                   e.stopPropagation()
                   onEnterFrame(frame, nextFrameId)
+                }
+              }}
+              onPaste={(e) => {
+                const text = e.clipboardData.getData('text/plain')
+                if (text) {
+                  const lines = text.split(/\r?\n/).filter((line) => line.trim())
+                  if (lines.length > 1 && onMultiLinePaste) {
+                    e.preventDefault()
+                    onMultiLinePaste(frame.id, lines)
+                  }
                 }
               }}
                 onBlur={() => {
@@ -900,32 +912,63 @@ export function CreatePage() {
   const handlePaste = useCallback(
     async (e: ClipboardEvent) => {
       const images = getImagesFromClipboard(e.clipboardData)
-      if (images.length === 0) return
+      
+      if (images.length > 0) {
+        e.preventDefault()
+        setProcessingFiles(true)
+        try {
+          const remaining = MAX_FRAMES - frames.length
+          const toProcess = images.slice(0, focusedFrameId ? 1 : remaining)
+          const converted = await Promise.all(toProcess.map((f) => prepareImage(f)))
 
-      e.preventDefault()
-      setProcessingFiles(true)
-      try {
-        const remaining = MAX_FRAMES - frames.length
-        const toProcess = images.slice(0, focusedFrameId ? 1 : remaining)
-        const converted = await Promise.all(toProcess.map((f) => prepareImage(f)))
+          if (focusedFrameId && converted[0]) {
+            const file = converted[0]
+            updateFrame(focusedFrameId, {
+              imageFile: file,
+              imageUrl: URL.createObjectURL(file),
+            })
+          } else {
+            addFrames(converted)
+            if (images.length > remaining || frames.length + converted.length === MAX_FRAMES) {
+              setLimitMessageShown(true)
+            }
+          }
+        } finally {
+          setProcessingFiles(false)
+        }
+        return
+      }
 
-        if (focusedFrameId && converted[0]) {
-          const file = converted[0]
-          updateFrame(focusedFrameId, {
-            imageFile: file,
-            imageUrl: URL.createObjectURL(file),
-          })
-        } else {
-          addFrames(converted)
-          if (images.length > remaining || frames.length + converted.length === MAX_FRAMES) {
-            setLimitMessageShown(true)
+      // Handle multi-line text paste in list view
+      if (view === 'list') {
+        const text = e.clipboardData?.getData('text/plain')
+        if (text) {
+          const lines = text.split(/\r?\n/).filter((line) => line.trim())
+          if (lines.length > 1) {
+            e.preventDefault()
+            const remaining = MAX_FRAMES - frames.length
+            const linesToAdd = lines.slice(0, remaining)
+            
+            // Create frames for each line
+            linesToAdd.forEach((line, index) => {
+              const id = addEmptyFrame()
+              if (id) {
+                updateFrame(id, { caption: line.trim() })
+                // Focus the first new frame
+                if (index === 0) {
+                  setFocusCaptionFrameId(id)
+                }
+              }
+            })
+
+            if (lines.length > remaining || frames.length + linesToAdd.length === MAX_FRAMES) {
+              setLimitMessageShown(true)
+            }
           }
         }
-      } finally {
-        setProcessingFiles(false)
       }
     },
-    [frames.length, focusedFrameId, updateFrame, addFrames]
+    [frames.length, focusedFrameId, updateFrame, addFrames, view, addEmptyFrame]
   )
 
   useEffect(() => {
@@ -954,6 +997,38 @@ export function CreatePage() {
     const id = addEmptyFrame()
     if (id) setFocusCaptionFrameId(id)
   }
+
+  const handleMultiLinePaste = useCallback(
+    (frameId: string, lines: string[]) => {
+      if (lines.length === 0) return
+      
+      // First line updates the current frame's caption
+      updateFrame(frameId, { caption: lines[0].trim() })
+      
+      // Remaining lines create new frames
+      const remaining = MAX_FRAMES - frames.length
+      const linesToAdd = lines.slice(1, 1 + remaining)
+      
+      let lastCreatedId: string | null = null
+      linesToAdd.forEach((line) => {
+        const id = addEmptyFrame()
+        if (id) {
+          updateFrame(id, { caption: line.trim() })
+          lastCreatedId = id
+        }
+      })
+
+      // Focus the last created frame
+      if (lastCreatedId) {
+        setFocusCaptionFrameId(lastCreatedId)
+      }
+
+      if (lines.length - 1 > remaining || frames.length + linesToAdd.length === MAX_FRAMES) {
+        setLimitMessageShown(true)
+      }
+    },
+    [frames.length, updateFrame, addEmptyFrame]
+  )
 
   const handleFocusCaptionConsumed = () => {
     setFocusCaptionFrameId(null)
@@ -1208,6 +1283,7 @@ export function CreatePage() {
                       }
                       onFocus={setFocusedFrameId}
                       onBlur={() => setFocusedFrameId(null)}
+                      onMultiLinePaste={handleMultiLinePaste}
                     />
                   ))}
                 </div>

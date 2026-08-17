@@ -56,6 +56,17 @@ export function createEmptyFrame(fontFamily: FontFamilyId = 'Arial'): ComicFrame
   }
 }
 
+export interface LoadedFrame {
+  id: string
+  image_url: string
+  caption: string
+  overlay_x: number
+  overlay_y: number
+  font_size: number
+  font_color: string
+  font_family?: string
+}
+
 interface ComicState {
   frames: ComicFrame[]
   comicTitle: string
@@ -70,6 +81,7 @@ interface ComicState {
   publishedSlug: string | null
   publishedComicId: string | null
   setPublishedComic: (args: { slug: string; comicId: string }) => void
+  loadPublishedComic: (comicId: string, slug: string, title: string, frames: LoadedFrame[]) => void
 }
 
 export const useComicStore = create<ComicState>((set) => ({
@@ -150,6 +162,36 @@ export const useComicStore = create<ComicState>((set) => ({
     set({
       publishedSlug: slug,
       publishedComicId: comicId,
+    })
+  },
+
+  loadPublishedComic: (comicId, slug, title, dbFrames) => {
+    set((state) => {
+      // Revoke any existing blob URLs
+      state.frames.forEach((f) => {
+        if (f.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(f.imageUrl)
+      })
+
+      // Convert DB frames to local frames (imageFile will be null since we're loading from URLs)
+      const frames: ComicFrame[] = dbFrames.map((f) => ({
+        id: f.id,
+        imageFile: null,
+        imageUrl: f.image_url,
+        websiteUrl: undefined,
+        caption: f.caption,
+        overlayPosition: { x: f.overlay_x, y: f.overlay_y },
+        textMode: 'caption' as TextMode,
+        fontSize: f.font_size,
+        fontColor: f.font_color,
+        fontFamily: (f.font_family as FontFamilyId) || 'Arial',
+      }))
+
+      return {
+        frames,
+        comicTitle: title,
+        publishedSlug: slug,
+        publishedComicId: comicId,
+      }
     })
   },
 }))

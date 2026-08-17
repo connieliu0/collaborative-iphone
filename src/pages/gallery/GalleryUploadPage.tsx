@@ -231,7 +231,22 @@ export function GalleryUploadPage() {
 
   const carouselDisabled = step === 'processing' || uploading
   const addSlotContent = (() => {
-    if (uploading || step === 'waiting') {
+    if (uploading && stagedPreviewUrl) {
+      return (
+        <div className="relative h-full w-full">
+          <img
+            src={stagedPreviewUrl}
+            alt=""
+            className="h-full max-h-full w-full object-contain block md:h-[100dvh] md:max-h-[100dvh] md:w-auto"
+            draggable={false}
+          />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="block w-[clamp(1.75rem,8vw,2.5rem)] h-[clamp(1.75rem,8vw,2.5rem)] rounded-full border-2 border-white/80 border-t-white animate-spin drop-shadow-lg" />
+          </div>
+        </div>
+      )
+    }
+    if (step === 'waiting') {
       return (
         <span className="block w-[clamp(1.75rem,8vw,2.5rem)] h-[clamp(1.75rem,8vw,2.5rem)] rounded-full border-2 border-gray-300 border-t-gray-900 animate-spin" />
       )
