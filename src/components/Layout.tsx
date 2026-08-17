@@ -59,17 +59,6 @@ export function Layout({ children }: { children?: React.ReactNode }) {
         </div>
       )}
       <main className="flex-1 w-full min-w-0 max-w-[640px] mx-auto px-4 py-6 box-border">
-        {!authLoading && !user && !isGalleryPath(location.pathname) && (
-          <div className="flex items-center justify-end mb-4">
-            <button
-              type="button"
-              onClick={() => openAuthModal('Log in to view your profile and published comics')}
-              className="min-h-[36px] px-4 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
-            >
-              Log in
-            </button>
-          </div>
-        )}
         {children ?? <Outlet />}
       </main>
     </div>

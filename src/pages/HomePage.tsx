@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useAuthModal } from '../contexts/AuthModalContext'
 import { prepareImage } from '../lib/prepareImage'
 import { useComicStore } from '../stores/useComicStore'
 
@@ -12,6 +13,7 @@ const entryButtonClass =
 export function HomePage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { openAuthModal } = useAuthModal()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [processing, setProcessing] = useState(false)
   const { frames, addFrames } = useComicStore()
@@ -47,7 +49,7 @@ export function HomePage() {
         <h1 className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
           Sequence, a comic maker
         </h1>
-        {user && (
+        {user ? (
           <Link
             to="/profile"
             aria-label="Go to profile"
@@ -62,6 +64,14 @@ export function HomePage() {
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
             </svg>
           </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openAuthModal('Log in to view your profile and published comics')}
+            className="px-6 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+          >
+            Log in
+          </button>
         )}
       </header>
 

@@ -219,14 +219,34 @@ function SortableGridItem({
       <div
         ref={setNodeRef}
         style={style}
-        className={`group aspect-[198/277] relative rounded-lg overflow-hidden bg-[#DDDDDD] border border-border cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isDragging ? 'opacity-80 z-10' : ''}`}
-        onClick={() => (frame.imageUrl ? onNavigate(frame.id) : onUpload(frame.id))}
+        className={`group aspect-[198/277] relative rounded-lg overflow-hidden bg-[#DDDDDD] border border-border cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
+        onClick={(e) => {
+          if (frame.imageUrl) {
+            onNavigate(frame.id)
+          } else {
+            onUpload(frame.id)
+          }
+          // Focus the item when clicked
+          ;(e.currentTarget as HTMLElement).focus()
+        }}
+        onFocus={() => {
+          if (!isEditingCaption) {
+            onFocus?.(frame.id)
+          }
+        }}
+        onBlur={(e) => {
+          // Only blur if not focusing a child element
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            onBlur?.()
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
             onEnterFrame(frame, nextFrameId)
           }
         }}
+        tabIndex={0}
         aria-label={frame.imageUrl ? `Edit frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
         {...gridAttributes}
         {...listeners}
@@ -329,7 +349,6 @@ function SortableGridItem({
               }}
                       onBlur={() => {
                         setIsEditingCaption(false)
-                        onBlur?.()
                       }}
               rows={1}
               className="block w-full h-full min-h-[1.5rem] bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-[11px] leading-snug text-white placeholder-gray-300"
@@ -433,8 +452,19 @@ function SortableListItem({
       <div
         ref={setNodeRef}
         style={style}
-        className={`group flex flex-row items-stretch gap-0 w-full rounded-lg border border-border bg-surface overflow-hidden cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${isDragging ? 'opacity-80 z-10' : ''}`}
+        className={`group flex flex-row items-stretch gap-0 w-full rounded-lg border border-border bg-surface overflow-hidden cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
         tabIndex={0}
+        onFocus={() => {
+          if (!isEditingCaption) {
+            onFocus?.(frame.id)
+          }
+        }}
+        onBlur={(e) => {
+          // Only blur if not focusing a child element
+          if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+            onBlur?.()
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
@@ -508,7 +538,6 @@ function SortableListItem({
               }}
                 onBlur={() => {
                   setIsEditingCaption(false)
-                  onBlur?.()
                 }}
               onClick={(e) => e.stopPropagation()}
               rows={1}
