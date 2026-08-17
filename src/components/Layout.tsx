@@ -2,16 +2,12 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useDraftPersistence } from '../hooks/useDraftPersistence'
-import { useAuthModal } from '../contexts/AuthModalContext'
 
 const isFullscreenPath = (pathname: string) =>
   /^\/comic\/[^/]+$/.test(pathname) || /^\/session\/[^/]+\/visualizer$/.test(pathname)
 
-const isGalleryPath = (pathname: string) => /^\/gallery(?:\/|$)/.test(pathname)
-
 export function Layout({ children }: { children?: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
-  const { openAuthModal } = useAuthModal()
   useDraftPersistence(user, authLoading)
   const location = useLocation()
   const hideNav = isFullscreenPath(location.pathname)
