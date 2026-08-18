@@ -191,7 +191,62 @@ export async function publishComic(
   return { slug, comicId }
 }
 
-/** Re-publish into an existing comic (solo). Deletes old frames + replaces storage objects. */
+type FrameInsertRow = {
+  comic_id: string
+  order: number
+  image_url: string
+  caption: string
+  overlay_x: number
+  overlay_y: number
+  font_size: number
+  font_color: string
+}
+
+/** Update existing frames in order; insert extras; delete leftovers. Never reuses client IDs. */
+async function replaceComicFrames(
+  comicId: string,
+  rows: FrameInsertRow[]
+): Promise<{ error?: string }> {
+  const { data: existing, error: existingError } = await supabase
+    .from('frames')
+    .select('id')
+    .eq('comic_id', comicId)
+    .order('order', { ascending: true })
+
+  if (existingError) {
+    return { error: existingError.message }
+  }
+
+  const existingIds = (existing ?? []).map((row) => row.id as string)
+  const overlap = Math.min(existingIds.length, rows.length)
+
+  if (overlap > 0) {
+    const updates = await Promise.all(
+      rows.slice(0, overlap).map((row, i) =>
+        supabase.from('frames').update(row).eq('id', existingIds[i])
+      )
+    )
+    const failed = updates.find((result) => result.error)
+    if (failed?.error) return { error: failed.error.message }
+  }
+
+  if (rows.length > existingIds.length) {
+    const { error } = await supabase.from('frames').insert(rows.slice(existingIds.length))
+    if (error) return { error: error.message }
+  }
+
+  if (existingIds.length > rows.length) {
+    const { error } = await supabase
+      .from('frames')
+      .delete()
+      .in('id', existingIds.slice(rows.length))
+    if (error) return { error: error.message }
+  }
+
+  return {}
+}
+
+/** Re-publish into an existing comic (solo). Updates frames in place + replaces storage objects. */
 export async function updateComic(
   comicId: string,
   userId: string,
@@ -217,13 +272,6 @@ export async function updateComic(
 
   const slug = comicRow.slug as string
 
-  // Remove existing frames rows first (RLS needs DELETE policies for this to work).
-  const { error: deleteFramesError } = await supabase.from('frames').delete().eq('comic_id', comicId)
-  if (deleteFramesError) {
-    console.error('updateComic: failed to delete frames', { comicId, userId, error: deleteFramesError })
-    return { error: deleteFramesError.message }
-  }
-
   // Remove existing storage objects for this comic.
   const prefix = `${userId}/${comicId}`
   const { data: objects, error: listError } = await supabase.storage.from(BUCKET).list(prefix)
@@ -242,7 +290,6 @@ export async function updateComic(
     }
   }
 
-  // Re-upload the frames and re-insert.
   const uploadedUrls: string[] = []
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i]
@@ -265,7 +312,7 @@ export async function updateComic(
     const path = `${userId}/${comicId}/${frame.id}${ext}`
     const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
       contentType: file.type || 'image/png',
-      upsert: false,
+      upsert: true,
     })
     if (uploadError) return { error: uploadError.message }
 
@@ -273,8 +320,7 @@ export async function updateComic(
     uploadedUrls.push(urlData.publicUrl)
   }
 
-  const framesRows = frames.map((frame, index) => ({
-    id: frame.id,
+  const framesRows: FrameInsertRow[] = frames.map((frame, index) => ({
     comic_id: comicId,
     order: index,
     image_url: uploadedUrls[index],
@@ -285,10 +331,10 @@ export async function updateComic(
     font_color: frame.fontColor,
   }))
 
-  const { error: framesError } = await supabase.from('frames').insert(framesRows)
-  if (framesError) {
-    console.error('updateComic: failed to insert frames', { comicId, userId, error: framesError })
-    return { error: framesError.message }
+  const replaceResult = await replaceComicFrames(comicId, framesRows)
+  if (replaceResult.error) {
+    console.error('updateComic: failed to replace frames', { comicId, userId, error: replaceResult.error })
+    return { error: replaceResult.error }
   }
 
   // Ensure comic is marked complete for solo.
