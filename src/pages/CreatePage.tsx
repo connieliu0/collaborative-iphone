@@ -418,13 +418,21 @@ function SortableListItem({
   const [isEditingCaption, setIsEditingCaption] = useState(false)
   const captionInputRef = useRef<HTMLTextAreaElement>(null)
 
+  const autoResizeTextarea = useCallback(() => {
+    const textarea = captionInputRef.current
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [])
+
   useLayoutEffect(() => {
     if (!isEditingCaption) return
     const input = captionInputRef.current
     if (!input) return
     input.focus()
     input.setSelectionRange(input.value.length, input.value.length)
-  }, [isEditingCaption])
+    autoResizeTextarea()
+  }, [isEditingCaption, autoResizeTextarea])
 
   useEffect(() => {
     if (focusCaptionFrameId === frame.id) {
@@ -531,7 +539,10 @@ function SortableListItem({
             <textarea
               ref={captionInputRef}
               value={frame.caption}
-              onChange={(e) => onCaptionChange(frame.id, e.target.value)}
+              onChange={(e) => {
+                onCaptionChange(frame.id, e.target.value)
+                autoResizeTextarea()
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
@@ -554,8 +565,7 @@ function SortableListItem({
                   setIsEditingCaption(false)
                 }}
               onClick={(e) => e.stopPropagation()}
-              rows={1}
-              className="block w-full min-h-[1.25rem] p-0 m-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-sm leading-snug text-gray-900 placeholder:text-gray-500 placeholder:opacity-100"
+              className="block w-full min-h-[1.25rem] p-0 m-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-sm leading-snug text-gray-900 placeholder:text-gray-500 placeholder:opacity-100 overflow-hidden"
               style={{
                 ...captionFontStyle,
                 lineHeight: 1.375,
