@@ -18,20 +18,20 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import {
+  COMIC_CAPTION_FONT_FAMILY,
+  COMIC_TEXT_STROKE_SHADOW,
+} from '../lib/comicCaptionStyle'
 import type { ComicFrame } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
+import { createPagePath, editPagePath } from '../lib/comicEditor'
 
 const MAX_FRAMES = 12
 
 const captionFontStyle: React.CSSProperties = {
-  fontFamily: 'Arial, Helvetica, sans-serif',
+  fontFamily: COMIC_CAPTION_FONT_FAMILY,
   fontWeight: 'bold',
 }
-
-const textOverlayShadow =
-  '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85), ' +
-  '0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85), ' +
-  '1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)'
 
 function UploadIcon({ className }: { className?: string }) {
   return (
@@ -653,7 +653,7 @@ function FeedCaptionEditor({
             />
             {/* Inline editable text overlay - centered on image */}
             <div
-              className="absolute inset-x-4 bottom-4 flex items-center justify-center"
+              className="absolute inset-x-4 bottom-8 flex items-center justify-center"
             >
               <textarea
                 ref={inputRef}
@@ -666,7 +666,7 @@ function FeedCaptionEditor({
                   ...captionFontStyle,
                   fontSize: `${frame.fontSize}px`,
                   color: frame.fontColor,
-                  textShadow: textOverlayShadow,
+                  textShadow: COMIC_TEXT_STROKE_SHADOW,
                 }}
               />
             </div>
@@ -759,12 +759,12 @@ function FeedView({
               )}
               {frame.caption && (
                 <div
-                  className="absolute bottom-4 left-4 right-4 leading-snug text-center"
+                  className="absolute bottom-8 left-4 right-4 leading-snug text-center"
                   style={{
                     ...captionFontStyle,
                     fontSize: `${frame.fontSize}px`,
                     color: frame.fontColor,
-                    textShadow: textOverlayShadow,
+                    textShadow: COMIC_TEXT_STROKE_SHADOW,
                   }}
                 >
                   {frame.caption}
@@ -839,7 +839,7 @@ export function CreatePage() {
   const [linkModalFrameId, setLinkModalFrameId] = useState<string | null>(null)
   const focusHandledRef = useRef(false)
 
-  const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame } = useComicStore()
+  const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame, publishedSlug, editorHydrated, editorHydrateError } = useComicStore()
   const hasFrames = frames.length > 0
 
   useEffect(() => {
@@ -848,7 +848,7 @@ export function CreatePage() {
 
   // Handle ?view=list&focus=first from "Describe a feeling" homepage entry
   useEffect(() => {
-    if (!hydrated || focusHandledRef.current) return
+    if (!hydrated || !editorHydrated || focusHandledRef.current) return
     const focus = searchParams.get('focus')
     if (focus !== 'first') return
 
@@ -865,7 +865,7 @@ export function CreatePage() {
     const next = new URLSearchParams(searchParams)
     next.delete('focus')
     setSearchParams(next, { replace: true })
-  }, [hydrated, searchParams, setSearchParams, addEmptyFrame])
+  }, [hydrated, editorHydrated, searchParams, setSearchParams, addEmptyFrame])
 
   const canAddMore = frames.length < MAX_FRAMES
 
@@ -1079,11 +1079,26 @@ export function CreatePage() {
   }
 
   const handleNavigateToEdit = (id: string) => {
-    navigate(`/edit?frame=${id}`)
+    navigate(editPagePath(id, publishedSlug))
   }
 
-  if (!hydrated) {
+  if (!hydrated || !editorHydrated) {
     return <CreatePageSkeleton />
+  }
+
+  if (editorHydrateError && !hasFrames) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
+        <p className="text-gray-600 mb-4">{editorHydrateError}</p>
+        <button
+          type="button"
+          onClick={() => navigate('/create', { replace: true })}
+          className="min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors"
+        >
+          Start a new comic
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -1117,6 +1132,7 @@ export function CreatePage() {
         variant="create"
         hideActions={frames.length === 0}
         previewDisabled={frames.length === 0}
+        previewReturnTo={createPagePath(publishedSlug, view)}
         leftContent={
           <h1 className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
             Sequence, a comic maker

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { deleteComic } from '../lib/deleteComic'
+import { createPagePath, fetchComicForEditor } from '../lib/comicEditor'
 import { useAuth } from '../hooks/useAuth'
-import { useComicStore, type LoadedFrame } from '../stores/useComicStore'
+import { useComicStore } from '../stores/useComicStore'
 
 interface ProfileComic {
   id: string
@@ -91,31 +92,16 @@ export function ProfilePage() {
     setEditingId(comic.id)
     setDeleteError(null)
 
-    // Fetch the frames for this comic
-    const { data: frames, error: framesError } = await supabase
-      .from('frames')
-      .select('id, image_url, caption, overlay_x, overlay_y, font_size, font_color')
-      .eq('comic_id', comic.id)
-      .order('order', { ascending: true })
-
-    if (framesError) {
-      setDeleteError(`Failed to load comic: ${framesError.message}`)
+    const result = await fetchComicForEditor(comic.slug)
+    if ('error' in result) {
+      setDeleteError(result.error)
       setEditingId(null)
       return
     }
 
-    if (!frames || frames.length === 0) {
-      setDeleteError('This comic has no frames to edit')
-      setEditingId(null)
-      return
-    }
-
-    // Load the comic into the store
-    loadPublishedComic(comic.id, comic.slug, comic.title || 'Comic Title', frames as LoadedFrame[])
+    loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
     setEditingId(null)
-
-    // Navigate to the create page
-    navigate('/create')
+    navigate(createPagePath(result.slug))
   }
 
   const handleLogout = async () => {

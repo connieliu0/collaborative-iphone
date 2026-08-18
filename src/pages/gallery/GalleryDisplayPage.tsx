@@ -73,7 +73,7 @@ export function GalleryDisplayPage() {
             image_url: current.image_url,
             caption: current.caption,
             overlay_x: 50,
-            overlay_y: 87,
+            overlay_y: 82,
             font_size: 22,
             font_color: '#ffffff',
             font_family: 'Arial',

@@ -8,12 +8,13 @@ import { addFrameToComic, type AddFramePayload } from '../lib/publish'
 import { isHeic } from '../lib/heic'
 import { prepareImage } from '../lib/prepareImage'
 import type { OverlayPosition } from '../stores/useComicStore'
+import { DEFAULT_COMIC_FONT_COLOR, DEFAULT_COMIC_FONT_SIZE } from '../lib/comicCaptionStyle'
 
-const FONT_SIZE_PRESETS = [14, 18, 24] as const
+const FONT_SIZE_PRESETS = [18, 24, 28, 36] as const
 const FONT_COLOR_SWATCHES = [
+  { label: 'Yellow', value: DEFAULT_COMIC_FONT_COLOR },
   { label: 'White', value: '#ffffff' },
   { label: 'Black', value: '#000000' },
-  { label: 'Yellow', value: '#facc15' },
   { label: 'Red', value: '#ef4444' },
 ] as const
 
@@ -29,8 +30,8 @@ export function AddFramePage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [caption, setCaption] = useState('')
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>({ ...defaultOverlay })
-  const [fontSize, setFontSize] = useState(18)
-  const [fontColor, setFontColor] = useState('#ffffff')
+  const [fontSize, setFontSize] = useState(DEFAULT_COMIC_FONT_SIZE)
+  const [fontColor, setFontColor] = useState(DEFAULT_COMIC_FONT_COLOR)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [convertingHeic, setConvertingHeic] = useState(false)

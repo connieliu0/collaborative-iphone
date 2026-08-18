@@ -8,8 +8,9 @@ const isFullscreenPath = (pathname: string) =>
 
 export function Layout({ children }: { children?: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
-  useDraftPersistence(user, authLoading)
   const location = useLocation()
+  const comicSlugFromUrl = new URLSearchParams(location.search).get('comic')
+  useDraftPersistence(user, authLoading, comicSlugFromUrl)
   const hideNav = isFullscreenPath(location.pathname)
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true

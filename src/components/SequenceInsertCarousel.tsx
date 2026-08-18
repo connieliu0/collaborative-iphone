@@ -15,7 +15,7 @@ export function CaptionOverlay({ caption, fontSize }: { caption: string; fontSiz
 
   return (
     <div
-      className="absolute left-1/2 bottom-[8%] -translate-x-1/2 max-w-[92%] select-none pointer-events-none flex justify-center"
+      className="absolute left-1/2 bottom-[11%] -translate-x-1/2 max-w-[92%] select-none pointer-events-none flex justify-center"
       style={{ fontSize }}
     >
       <span

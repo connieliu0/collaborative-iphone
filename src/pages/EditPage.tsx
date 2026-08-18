@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { ComicFlowHeader } from '../components/ComicFlowHeader'
 import { prepareImage, getImagesFromClipboard } from '../lib/prepareImage'
+import { COMIC_CAPTION_FONT_FAMILY, COMIC_TEXT_STROKE_SHADOW } from '../lib/comicCaptionStyle'
+import { createPagePath, editPagePath } from '../lib/comicEditor'
 import type { ComicFrame, OverlayPosition } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
 
@@ -10,7 +12,7 @@ const MAX_FRAMES = 12
 const PLACEHOLDER_TEXT = 'Your text here'
 
 const overlayFontStyle: React.CSSProperties = {
-  fontFamily: 'Arial, Helvetica, sans-serif',
+  fontFamily: COMIC_CAPTION_FONT_FAMILY,
   fontWeight: 'bold',
 }
 
@@ -20,7 +22,7 @@ export function EditPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const frameId = searchParams.get('frame') ?? ''
 
-  const { frames, addFrames, updateFrame } = useComicStore()
+  const { frames, addFrames, updateFrame, publishedSlug, editorHydrated, editorHydrateError } = useComicStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const colorInputRef = useRef<HTMLInputElement>(null)
   const [processingFiles, setProcessingFiles] = useState(false)
@@ -207,11 +209,31 @@ export function EditPage() {
     return () => document.removeEventListener('paste', handlePaste)
   }, [handlePaste])
 
+  if (!editorHydrated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh]">
+        <div className="h-10 w-10 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+        <p className="text-sm text-gray-600 mt-3">Loading comic…</p>
+      </div>
+    )
+  }
+
+  if (editorHydrateError && frames.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
+        <p className="text-gray-600 mb-4">{editorHydrateError}</p>
+        <Link to={createPagePath(publishedSlug)} className={btnPrimary + ' inline-flex items-center justify-center'}>
+          ← Back to Create
+        </Link>
+      </div>
+    )
+  }
+
   if (frames.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
         <p className="text-gray-600 mb-4">No frames yet. Add photos on the create page.</p>
-        <Link to="/create" className={btnPrimary + ' inline-flex items-center justify-center'}>
+        <Link to={createPagePath(publishedSlug)} className={btnPrimary + ' inline-flex items-center justify-center'}>
           ← Back to Create
         </Link>
       </div>
@@ -219,7 +241,7 @@ export function EditPage() {
   }
 
   if (!frame && frames.length > 0) {
-    return <Navigate replace to={`/edit?frame=${frames[0].id}`} />
+    return <Navigate replace to={editPagePath(frames[0].id, publishedSlug)} />
   }
   if (!frame) return null
 
@@ -254,7 +276,11 @@ export function EditPage() {
         className="hidden"
         aria-label="Add more photos"
       />
-      <ComicFlowHeader variant="edit" />
+      <ComicFlowHeader
+        variant="edit"
+        backTo={createPagePath(publishedSlug)}
+        previewReturnTo={editPagePath(frameId, publishedSlug)}
+      />
 
       <section
         className="shrink-0 w-full relative rounded-lg overflow-hidden "
@@ -336,13 +362,7 @@ export function EditPage() {
                       fontSize: `${frame.fontSize}px`,
                       color: frame.fontColor,
                       ...overlayFontStyle,
-                      // `-webkit-text-stroke` renders on both inside/outside.
-                      // This `text-shadow` outline renders behind the filled glyph
-                      // so it mostly reads like an outside stroke.
-                      textShadow:
-                        '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85),' +
-                        ' 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85),' +
-                        ' 1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
+                      textShadow: COMIC_TEXT_STROKE_SHADOW,
                     }}
                     rows={1}
                     aria-label="Edit text on image"
@@ -374,13 +394,7 @@ export function EditPage() {
                     fontSize: `${frame.fontSize}px`,
                     color: frame.fontColor,
                     ...overlayFontStyle,
-                    // `-webkit-text-stroke` renders on both inside/outside.
-                    // This `text-shadow` outline renders behind the filled glyph
-                    // so it mostly reads like an outside stroke.
-                    textShadow:
-                      '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85),' +
-                      ' 0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85),' +
-                      ' 1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
+                    textShadow: COMIC_TEXT_STROKE_SHADOW,
                   }}
                 >
                   {frame.caption.trim() || PLACEHOLDER_TEXT}

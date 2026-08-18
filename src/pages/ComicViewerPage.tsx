@@ -38,10 +38,18 @@ import { supabase } from '../lib/supabase'
 import { endComic } from '../lib/publish'
 import { useComic } from '../hooks/useComic'
 import { useAuth } from '../hooks/useAuth'
+import {
+  CAPTION_OVERLAY_Y_NUDGE,
+  COMIC_CAPTION_FONT_FAMILY,
+  COMIC_TEXT_STROKE_SHADOW,
+  DEFAULT_OVERLAY_Y,
+  normalizeLegacyComicCaptionStyle,
+  resolveCaptionOverlayY,
+} from '../lib/comicCaptionStyle'
 
 const SWIPE_THRESHOLD_PX = 50
 
-const CAPTION_FONT_FAMILY = 'Arial, Helvetica, sans-serif'
+const CAPTION_FONT_FAMILY = COMIC_CAPTION_FONT_FAMILY
 
 export interface FrameDisplay {
   image_url: string
@@ -74,13 +82,15 @@ export function FrameContent({
 }) {
   const isPreview = variant === 'preview'
   const naturalSize = imageFit === 'natural'
+  const { fontSize: captionFontSize, fontColor: captionFontColor } = normalizeLegacyComicCaptionStyle(
+    frame.font_size,
+    frame.font_color
+  )
 
-  // When we render the frame text as an "overlay on the image", bias the position
-  // toward the lower half by default (many existing frames default to overlay_y=50).
   const overlayTopPct =
     typeof frame.overlay_y === 'number'
-      ? Math.min(92, Math.max(87, frame.overlay_y))
-      : 87
+      ? resolveCaptionOverlayY(frame.overlay_y)
+      : DEFAULT_OVERLAY_Y - CAPTION_OVERLAY_Y_NUDGE
 
   return (
     <div
@@ -134,8 +144,8 @@ export function FrameContent({
               left: `${frame.overlay_x}%`,
               top: `${overlayTopPct}%`,
               transform: 'translate(-50%, -50%)',
-              fontSize: `${frame.font_size}px`,
-              color: frame.font_color,
+              fontSize: `${captionFontSize}px`,
+              color: captionFontColor,
               fontWeight: 'bold',
             }}
           >
@@ -152,11 +162,7 @@ export function FrameContent({
                       lineHeight: 1.2,
                     }
                   : {
-                      // Mimics an "outside stroke" outline (CSS text-stroke can’t be outside-only).
-                      textShadow:
-                        '-1px -1px 0 rgba(0, 0, 0, 0.85), -1px 0 0 rgba(0, 0, 0, 0.85), -1px 1px 0 rgba(0, 0, 0, 0.85), ' +
-                        '0 -1px 0 rgba(0, 0, 0, 0.85), 0 1px 0 rgba(0, 0, 0, 0.85), ' +
-                        '1px -1px 0 rgba(0, 0, 0, 0.85), 1px 0 0 rgba(0, 0, 0, 0.85), 1px 1px 0 rgba(0, 0, 0, 0.85)',
+                      textShadow: COMIC_TEXT_STROKE_SHADOW,
                     }),
               }}
             >
@@ -169,7 +175,7 @@ export function FrameContent({
         <div
           className="w-full bg-gray-800 text-white px-3 py-2 shrink-0 text-center text-sm"
           style={{
-            fontSize: `${frame.font_size}px`,
+            fontSize: `${captionFontSize}px`,
             fontFamily: CAPTION_FONT_FAMILY,
             fontWeight: 'bold',
           }}

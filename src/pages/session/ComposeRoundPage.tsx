@@ -3,6 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
+import {
+  DEFAULT_COMIC_FONT_COLOR,
+  DEFAULT_COMIC_FONT_SIZE,
+  DEFAULT_OVERLAY_Y,
+} from '../../lib/comicCaptionStyle'
 import { FrameContent, type FrameDisplay } from '../ComicViewerPage'
 import {
   advanceRound,
@@ -216,9 +221,9 @@ export function ComposeRoundPage() {
         image_url: f.image_url,
         caption: f.caption,
         overlay_x: 50,
-        overlay_y: 90,
-        font_size: 18,
-        font_color: '#ffffff',
+        overlay_y: DEFAULT_OVERLAY_Y,
+        font_size: DEFAULT_COMIC_FONT_SIZE,
+        font_color: DEFAULT_COMIC_FONT_COLOR,
         font_family: 'Arial',
       })),
     [frames]

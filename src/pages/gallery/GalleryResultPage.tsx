@@ -23,7 +23,7 @@ function galleryFrame(image: GalleryImage, caption: string) {
     image_url: image.image_url,
     caption,
     overlay_x: 50,
-    overlay_y: 87,
+    overlay_y: 82,
     font_size: 18,
     font_color: '#ffffff',
     font_family: 'Arial',

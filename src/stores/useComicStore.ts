@@ -1,4 +1,11 @@
 import { create } from 'zustand'
+import {
+  DEFAULT_COMIC_FONT_COLOR,
+  DEFAULT_COMIC_FONT_SIZE,
+  DEFAULT_OVERLAY_Y,
+  normalizeLegacyComicCaptionStyle,
+  normalizeLegacyOverlayY,
+} from '../lib/comicCaptionStyle'
 
 export type TextMode = 'caption' | 'overlay'
 
@@ -24,7 +31,7 @@ export interface ComicFrame {
 
 const MAX_FRAMES = 12
 
-const defaultOverlayPosition: OverlayPosition = { x: 50, y: 90 }
+const defaultOverlayPosition: OverlayPosition = { x: 50, y: DEFAULT_OVERLAY_Y }
 
 function createFrame(file: File, fontFamily: FontFamilyId): ComicFrame {
   return {
@@ -35,8 +42,8 @@ function createFrame(file: File, fontFamily: FontFamilyId): ComicFrame {
     caption: '',
     overlayPosition: { ...defaultOverlayPosition },
     textMode: 'caption',
-    fontSize: 18,
-    fontColor: '#ffffff',
+    fontSize: DEFAULT_COMIC_FONT_SIZE,
+    fontColor: DEFAULT_COMIC_FONT_COLOR,
     fontFamily,
   }
 }
@@ -50,8 +57,8 @@ export function createEmptyFrame(fontFamily: FontFamilyId = 'Arial'): ComicFrame
     caption: '',
     overlayPosition: { ...defaultOverlayPosition },
     textMode: 'caption',
-    fontSize: 18,
-    fontColor: '#ffffff',
+    fontSize: DEFAULT_COMIC_FONT_SIZE,
+    fontColor: DEFAULT_COMIC_FONT_COLOR,
     fontFamily,
   }
 }
@@ -82,6 +89,10 @@ interface ComicState {
   publishedComicId: string | null
   setPublishedComic: (args: { slug: string; comicId: string }) => void
   loadPublishedComic: (comicId: string, slug: string, title: string, frames: LoadedFrame[]) => void
+  restoreDraftMeta: (args: { publishedSlug?: string | null; publishedComicId?: string | null }) => void
+  editorHydrated: boolean
+  editorHydrateError: string | null
+  setEditorHydrated: (args: { hydrated: boolean; error?: string | null }) => void
 }
 
 export const useComicStore = create<ComicState>((set) => ({
@@ -89,6 +100,8 @@ export const useComicStore = create<ComicState>((set) => ({
   comicTitle: 'Comic Title',
   publishedSlug: null,
   publishedComicId: null,
+  editorHydrated: false,
+  editorHydrateError: null,
 
   setComicTitle: (title: string) => {
     set({ comicTitle: title })
@@ -165,6 +178,20 @@ export const useComicStore = create<ComicState>((set) => ({
     })
   },
 
+  restoreDraftMeta: ({ publishedSlug, publishedComicId }) => {
+    set({
+      publishedSlug: publishedSlug ?? null,
+      publishedComicId: publishedComicId ?? null,
+    })
+  },
+
+  setEditorHydrated: ({ hydrated, error = null }) => {
+    set({
+      editorHydrated: hydrated,
+      editorHydrateError: error,
+    })
+  },
+
   loadPublishedComic: (comicId, slug, title, dbFrames) => {
     set((state) => {
       // Revoke any existing blob URLs
@@ -173,18 +200,21 @@ export const useComicStore = create<ComicState>((set) => ({
       })
 
       // Convert DB frames to local frames (imageFile will be null since we're loading from URLs)
-      const frames: ComicFrame[] = dbFrames.map((f) => ({
-        id: f.id,
-        imageFile: null,
-        imageUrl: f.image_url,
-        websiteUrl: undefined,
-        caption: f.caption,
-        overlayPosition: { x: f.overlay_x, y: f.overlay_y },
-        textMode: 'caption' as TextMode,
-        fontSize: f.font_size,
-        fontColor: f.font_color,
-        fontFamily: (f.font_family as FontFamilyId) || 'Arial',
-      }))
+      const frames: ComicFrame[] = dbFrames.map((f) => {
+        const { fontSize, fontColor } = normalizeLegacyComicCaptionStyle(f.font_size, f.font_color)
+        return {
+          id: f.id,
+          imageFile: null,
+          imageUrl: f.image_url,
+          websiteUrl: undefined,
+          caption: f.caption,
+          overlayPosition: { x: f.overlay_x, y: normalizeLegacyOverlayY(f.overlay_y) },
+          textMode: 'caption' as TextMode,
+          fontSize,
+          fontColor,
+          fontFamily: (f.font_family as FontFamilyId) || 'Arial',
+        }
+      })
 
       return {
         frames,

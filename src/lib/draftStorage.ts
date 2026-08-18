@@ -16,14 +16,18 @@ export interface DraftFrameMeta {
   fontFamily?: FontFamilyId
 }
 
-/** Frame as stored in IndexedDB (includes Blob for image). */
+/** Frame as stored in IndexedDB (blob for local uploads, URL for published comics). */
 export interface DraftFrameStored extends DraftFrameMeta {
-  imageBlob: Blob
+  imageBlob?: Blob
+  imageUrl?: string
+  websiteUrl?: string
 }
 
 export interface DraftPayloadStored {
   version: number
   title?: string
+  publishedComicId?: string | null
+  publishedSlug?: string | null
   frames: DraftFrameStored[]
 }
 

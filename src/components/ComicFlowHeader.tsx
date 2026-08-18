@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAuthModal } from '../contexts/AuthModalContext'
+
+export const PREVIEW_RETURN_PATH_KEY = 'previewReturnPath'
 
 export type ComicFlowHeaderVariant = 'create' | 'edit'
 
@@ -13,6 +15,10 @@ export interface ComicFlowHeaderProps {
   previewDisabled?: boolean
   /** Shown before Preview (e.g. grid/list toggle on create). */
   leadingActions?: React.ReactNode
+  /** Where to return after closing preview. Defaults to current route. */
+  previewReturnTo?: string
+  /** Edit header back-link. Defaults to /create. */
+  backTo?: string
 }
 
 export function ComicFlowHeader({
@@ -21,9 +27,13 @@ export function ComicFlowHeader({
   hideActions = false,
   previewDisabled = false,
   leadingActions,
+  previewReturnTo,
+  backTo = '/create',
 }: ComicFlowHeaderProps) {
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
+  const location = useLocation()
+  const returnTo = previewReturnTo ?? `${location.pathname}${location.search}`
 
   return (
     <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2">
@@ -32,7 +42,7 @@ export function ComicFlowHeader({
           {variant === 'create' && leftContent}
           {variant === 'edit' && (
             <Link
-              to="/create"
+              to={backTo}
               className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2 whitespace-nowrap"
             >
               ← Back
@@ -45,9 +55,18 @@ export function ComicFlowHeader({
           {!hideActions && (
             <Link
               to="/preview"
+              state={{ from: returnTo }}
               className="btn-primary shrink-0"
               aria-disabled={previewDisabled}
-              onClick={(e) => previewDisabled && e.preventDefault()}
+              onClick={(e) => {
+                if (previewDisabled) {
+                  e.preventDefault()
+                  return
+                }
+                if (typeof window !== 'undefined') {
+                  window.sessionStorage.setItem(PREVIEW_RETURN_PATH_KEY, returnTo)
+                }
+              }}
               style={previewDisabled ? { pointerEvents: 'none' as const, opacity: 0.6 } : undefined}
             >
               Preview

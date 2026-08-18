@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { PREVIEW_RETURN_PATH_KEY } from '../components/ComicFlowHeader'
 import { PublishSuccessModal } from '../components/PublishSuccessModal'
 import { useAuthModal } from '../contexts/AuthModalContext'
 import { useAuth } from '../hooks/useAuth'
 import { publishComic, updateComic } from '../lib/publish'
+import { createPagePath } from '../lib/comicEditor'
 import { useComicStore } from '../stores/useComicStore'
 import { FrameContent, type FrameDisplay } from './ComicViewerPage'
 
@@ -13,10 +15,31 @@ const PUBLISH_AUTH_MESSAGE = 'Create a free account to publish your comic'
 
 const btnPrimary = 'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 
+function resolvePreviewReturnPath(
+  location: ReturnType<typeof useLocation>,
+  collabSessionCode: string | null,
+  publishedSlug: string | null
+): string {
+  const fromState = (location.state as { from?: string } | null)?.from
+  if (fromState) return fromState
+
+  if (typeof window !== 'undefined') {
+    const stored = window.sessionStorage.getItem(PREVIEW_RETURN_PATH_KEY)
+    if (stored) return stored
+  }
+
+  if (collabSessionCode?.trim()) {
+    return `/session/${collabSessionCode.trim()}/complete`
+  }
+
+  return createPagePath(publishedSlug)
+}
+
 export function PreviewPage() {
-  const { frames, comicTitle, publishedComicId, setPublishedComic } = useComicStore()
+  const { frames, comicTitle, publishedComicId, publishedSlug, setPublishedComic } = useComicStore()
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
+  const location = useLocation()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
@@ -29,12 +52,7 @@ export function PreviewPage() {
   const collabSessionCode =
     typeof window !== 'undefined' ? window.sessionStorage.getItem('collabSessionCode') : null
 
-  const closeTo =
-    collabSessionCode && collabSessionCode.trim()
-      ? `/session/${collabSessionCode}/complete`
-      : frames.length > 0
-        ? `/edit?frame=${frames[0].id}`
-        : '/create'
+  const closeTo = resolvePreviewReturnPath(location, collabSessionCode, publishedSlug)
 
   useEffect(() => {
     if (frames.length > 0) containerRef.current?.focus()
@@ -133,7 +151,7 @@ export function PreviewPage() {
     return (
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center text-white">
         <Link
-          to="/create"
+          to={createPagePath(publishedSlug)}
           className="absolute top-4 left-4 z-10 p-2 text-gray-300 hover:text-white rounded-full hover:bg-gray-800 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back to create"
         >
@@ -142,7 +160,7 @@ export function PreviewPage() {
           </svg>
         </Link>
         <p className="text-gray-300 text-center px-4 mb-4">No frames to preview</p>
-        <Link to="/create" className={btnPrimary + ' inline-flex items-center justify-center'}>
+        <Link to={createPagePath(publishedSlug)} className={btnPrimary + ' inline-flex items-center justify-center'}>
           Add Photos
         </Link>
       </div>

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { DEFAULT_COMIC_FONT_COLOR, DEFAULT_COMIC_FONT_SIZE, DEFAULT_OVERLAY_Y } from './comicCaptionStyle'
 
 const BUCKET = 'comic-frames'
 
@@ -347,9 +348,9 @@ export async function publishPersonalComic(
     // (Overlay text is intentionally left blank.)
     caption: f.caption,
     overlay_x: 50,
-    overlay_y: 90,
-    font_size: 18,
-    font_color: '#ffffff',
+    overlay_y: DEFAULT_OVERLAY_Y,
+    font_size: DEFAULT_COMIC_FONT_SIZE,
+    font_color: DEFAULT_COMIC_FONT_COLOR,
   }))
 
   const { error: framesError } = await supabase.from('frames').insert(frameRows)
@@ -546,9 +547,9 @@ export async function buildFinalComic(
     // Same rendering behavior as personal collab comics.
     caption: f.caption,
     overlay_x: 50,
-    overlay_y: 90,
-    font_size: 18,
-    font_color: '#ffffff',
+    overlay_y: DEFAULT_OVERLAY_Y,
+    font_size: DEFAULT_COMIC_FONT_SIZE,
+    font_color: DEFAULT_COMIC_FONT_COLOR,
   }))
 
   const { error: framesError } = await supabase.from('frames').insert(frameRows)
