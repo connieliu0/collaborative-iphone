@@ -44,18 +44,29 @@ async function blobUrlToFile(blobUrl: string, filename: string): Promise<File | 
   }
 }
 
-/** Fetch a remote URL and convert to a File for re-upload. */
-async function remoteUrlToFile(url: string, filename: string): Promise<File | null> {
-  if (!url.startsWith('http://') && !url.startsWith('https://')) return null
+function isRemoteImageUrl(url: string): boolean {
+  return url.startsWith('http://') || url.startsWith('https://')
+}
+
+function storageObjectNameFromPublicUrl(url: string): string | null {
   try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const blob = await res.blob()
-    const mime = blob.type || 'image/png'
-    return new File([blob], filename, { type: mime })
+    const last = new URL(url).pathname.split('/').filter(Boolean).pop()
+    return last ? decodeURIComponent(last) : null
   } catch {
     return null
   }
+}
+
+async function getFrameUploadFile(frame: ComicFrame): Promise<File | null> {
+  if (frame.imageFile) return frame.imageFile
+  const filename = `frame-${frame.id}.png`
+  if (frame.imageUrl.startsWith('data:')) {
+    return dataUrlToFile(frame.imageUrl, filename)
+  }
+  if (frame.imageUrl.startsWith('blob:')) {
+    return blobUrlToFile(frame.imageUrl, filename)
+  }
+  return null
 }
 
 export type PublishResult = { slug: string; comicId: string } | { error: string }
@@ -138,17 +149,7 @@ export async function publishComic(
 
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i]
-    let file = frame.imageFile
-    if (!file && frame.imageUrl.startsWith('data:')) {
-      file = dataUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
-    }
-    if (!file && frame.imageUrl.startsWith('blob:')) {
-      file = await blobUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
-    }
-    // Handle remote URLs (e.g., from previously published comics being edited)
-    if (!file && (frame.imageUrl.startsWith('http://') || frame.imageUrl.startsWith('https://'))) {
-      file = await remoteUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
-    }
+    const file = await getFrameUploadFile(frame)
     if (!file) {
       return { error: `Frame ${i + 1} has no image file` }
     }
@@ -271,39 +272,19 @@ export async function updateComic(
   }
 
   const slug = comicRow.slug as string
-
-  // Remove existing storage objects for this comic.
   const prefix = `${userId}/${comicId}`
-  const { data: objects, error: listError } = await supabase.storage.from(BUCKET).list(prefix)
-  if (listError) {
-    // If bucket is missing or RLS blocks listing, surface the error.
-    console.error('updateComic: failed to list storage objects', { prefix, error: listError })
-    return { error: listError.message }
-  }
-
-  if (objects && objects.length > 0) {
-    const paths = objects.map((o) => `${prefix}/${o.name}`)
-    const { error: removeError } = await supabase.storage.from(BUCKET).remove(paths)
-    if (removeError) {
-      console.error('updateComic: failed to remove storage objects', { prefix, error: removeError })
-      return { error: removeError.message }
-    }
-  }
 
   const uploadedUrls: string[] = []
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i]
-    let file = frame.imageFile
-    if (!file && frame.imageUrl.startsWith('data:')) {
-      file = dataUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
+    // Keep already-published remote images as-is. Deleting storage first used to
+    // 404 those URLs and drop original frames on republish.
+    if (!frame.imageFile && isRemoteImageUrl(frame.imageUrl)) {
+      uploadedUrls.push(frame.imageUrl)
+      continue
     }
-    if (!file && frame.imageUrl.startsWith('blob:')) {
-      file = await blobUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
-    }
-    // Handle remote URLs (e.g., from previously published comics being edited)
-    if (!file && (frame.imageUrl.startsWith('http://') || frame.imageUrl.startsWith('https://'))) {
-      file = await remoteUrlToFile(frame.imageUrl, `frame-${frame.id}.png`)
-    }
+
+    const file = await getFrameUploadFile(frame)
     if (!file) {
       return { error: `Frame ${i + 1} has no image file` }
     }
@@ -352,6 +333,30 @@ export async function updateComic(
   if (updateComicError) {
     console.error('updateComic: failed to update comic status', { comicId, userId, error: updateComicError })
     return { error: updateComicError.message }
+  }
+
+  const keepNames = new Set(
+    uploadedUrls
+      .map(storageObjectNameFromPublicUrl)
+      .filter((name): name is string => Boolean(name))
+  )
+  const { data: objects, error: listError } = await supabase.storage.from(BUCKET).list(prefix)
+  if (listError) {
+    console.error('updateComic: failed to list leftover storage objects', { prefix, error: listError })
+  } else {
+    const orphanPaths = (objects ?? [])
+      .map((object) => object.name)
+      .filter((name) => name && !keepNames.has(name))
+      .map((name) => `${prefix}/${name}`)
+    if (orphanPaths.length > 0) {
+      const { error: removeError } = await supabase.storage.from(BUCKET).remove(orphanPaths)
+      if (removeError) {
+        console.error('updateComic: failed to remove leftover storage objects', {
+          prefix,
+          error: removeError,
+        })
+      }
+    }
   }
 
   return { slug, comicId }
