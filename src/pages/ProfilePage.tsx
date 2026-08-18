@@ -120,7 +120,7 @@ export function ProfilePage() {
 
   const handleLogout = async () => {
     await signOut()
-    navigate('/')
+    navigate('/create')
   }
 
   if (!user) {

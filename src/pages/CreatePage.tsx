@@ -544,6 +544,7 @@ function SortableListItem({
                   const lines = text.split(/\r?\n/).filter((line) => line.trim())
                   if (lines.length > 1 && onMultiLinePaste) {
                     e.preventDefault()
+                    e.stopPropagation()
                     onMultiLinePaste(frame.id, lines)
                   }
                 }
@@ -939,8 +940,11 @@ export function CreatePage() {
         return
       }
 
-      // Handle multi-line text paste in list view
-      if (view === 'list') {
+      // Handle multi-line text paste in list view (only when not editing a textarea)
+      const activeEl = document.activeElement
+      const isEditingText = activeEl instanceof HTMLTextAreaElement || activeEl instanceof HTMLInputElement
+      
+      if (view === 'list' && !isEditingText) {
         const text = e.clipboardData?.getData('text/plain')
         if (text) {
           const lines = text.split(/\r?\n/).filter((line) => line.trim())
@@ -1113,6 +1117,11 @@ export function CreatePage() {
         variant="create"
         hideActions={frames.length === 0}
         previewDisabled={frames.length === 0}
+        leftContent={
+          <h1 className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
+            Sequence, a comic maker
+          </h1>
+        }
         leadingActions={
           hasFrames ? (
             /* Desktop: Grid / List toggle (mobile uses floating bottom toggle) */
@@ -1145,18 +1154,34 @@ export function CreatePage() {
       />
 
       {!hasFrames ? (
-        <>
+        <div className="flex items-stretch gap-6 self-stretch">
           <button
             type="button"
             onClick={openFileInput}
-            className="w-full min-h-[200px] border border-black border-dashed flex items-center justify-center p-[10px] bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2"
+            disabled={processingFiles}
+            className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
             aria-label="Upload photos"
           >
-            <p className="font-sans text-[16px] leading-normal text-black whitespace-nowrap">
-              Upload Photos
-            </p>
+            <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
+              {processingFiles ? 'Uploading…' : 'Upload Photos'}
+            </span>
           </button>
-        </>
+          <button
+            type="button"
+            onClick={() => {
+              const id = addEmptyFrame()
+              if (id) setFocusCaptionFrameId(id)
+              setView('list')
+            }}
+            disabled={processingFiles}
+            className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
+            aria-label="Describe a feeling"
+          >
+            <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
+              Describe a feeling
+            </span>
+          </button>
+        </div>
       ) : (
         <>
           {view === 'feed' ? (

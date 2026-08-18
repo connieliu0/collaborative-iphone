@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { AuthModalProvider } from './contexts/AuthModalContext'
 import { Layout } from './components/Layout'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { HomePage } from './pages/HomePage'
+import { LandingPage } from './pages/LandingPage'
 import { CreatePage } from './pages/CreatePage'
 import { EditPage } from './pages/EditPage'
 import { PreviewPage } from './pages/PreviewPage'
@@ -31,7 +31,7 @@ export function App() {
     <AuthModalProvider>
       <Layout>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/create" element={<CreatePage />} />
           <Route
             path="/edit"
