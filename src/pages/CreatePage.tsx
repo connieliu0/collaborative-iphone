@@ -22,11 +22,8 @@ import {
   COMIC_CAPTION_FONT_FAMILY,
   COMIC_TEXT_STROKE_SHADOW,
 } from '../lib/comicCaptionStyle'
-import type { ComicFrame } from '../stores/useComicStore'
-import { useComicStore } from '../stores/useComicStore'
+import { MAX_FRAMES, useComicStore, type ComicFrame } from '../stores/useComicStore'
 import { createPagePath, editPagePath } from '../lib/comicEditor'
-
-const MAX_FRAMES = 12
 
 const captionFontStyle: React.CSSProperties = {
   fontFamily: COMIC_CAPTION_FONT_FAMILY,
@@ -266,6 +263,8 @@ function SortableGridItem({
             alt=""
             className="w-full h-full object-cover pointer-events-none"
             draggable={false}
+            loading="lazy"
+            decoding="async"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-white">
@@ -506,6 +505,8 @@ function SortableListItem({
                 alt=""
                 className="h-full w-full min-h-14 object-cover pointer-events-none"
                 draggable={false}
+                loading="lazy"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                 <UploadIcon className="w-5 h-5 text-white" />
@@ -650,6 +651,7 @@ function FeedCaptionEditor({
               src={frame.imageUrl}
               alt=""
               className="w-full h-auto object-contain rounded-lg"
+              decoding="async"
             />
             {/* Inline editable text overlay - centered on image */}
             <div
@@ -751,6 +753,8 @@ function FeedView({
                   src={frame.imageUrl}
                   alt=""
                   className="max-w-full max-h-full object-contain"
+                  loading="lazy"
+                  decoding="async"
                 />
               ) : (
                 <div className="w-full h-full bg-[#DDDDDD] flex items-center justify-center">
@@ -794,6 +798,8 @@ function FeedView({
                 src={frame.imageUrl}
                 alt=""
                 className="w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-full h-full bg-[#DDDDDD]" />
@@ -1344,7 +1350,7 @@ export function CreatePage() {
             )}
             {limitMessageShown && frames.length === MAX_FRAMES && (
               <p className="text-sm text-amber-600" role="status">
-                Maximum 12 frames reached
+                Maximum {MAX_FRAMES} frames reached
               </p>
             )}
           </div>

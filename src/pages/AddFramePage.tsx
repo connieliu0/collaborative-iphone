@@ -7,7 +7,7 @@ import type { FrameRow } from '../hooks/useComic'
 import { addFrameToComic, type AddFramePayload } from '../lib/publish'
 import { isHeic } from '../lib/heic'
 import { prepareImage } from '../lib/prepareImage'
-import type { OverlayPosition } from '../stores/useComicStore'
+import { MAX_FRAMES, type OverlayPosition } from '../stores/useComicStore'
 import { DEFAULT_COMIC_FONT_COLOR, DEFAULT_COMIC_FONT_SIZE } from '../lib/comicCaptionStyle'
 
 const FONT_SIZE_PRESETS = [18, 24, 28, 36] as const
@@ -154,7 +154,7 @@ export function AddFramePage() {
         owner_id: comic.owner_id,
         turn_order: comic.turn_order ?? [comic.owner_id],
         current_turn_user_id: comic.current_turn_user_id ?? undefined,
-        max_frames: comic.max_frames ?? 24,
+        max_frames: comic.max_frames ?? MAX_FRAMES,
       },
       frames.length
     )

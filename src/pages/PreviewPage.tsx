@@ -36,7 +36,7 @@ function resolvePreviewReturnPath(
 }
 
 export function PreviewPage() {
-  const { frames, comicTitle, publishedComicId, publishedSlug, setPublishedComic } = useComicStore()
+  const { frames, comicTitle, publishedComicId, publishedSlug, setPublishedComic, updateFrameUrls } = useComicStore()
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
   const location = useLocation()
@@ -133,6 +133,7 @@ export function PreviewPage() {
     }
     setPublishSuccessSlug(result.slug)
     setPublishedComic({ slug: result.slug, comicId: result.comicId })
+    updateFrameUrls(result.uploadedUrls)
   }
 
   useEffect(() => {

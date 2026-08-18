@@ -4,10 +4,7 @@ import { ComicFlowHeader } from '../components/ComicFlowHeader'
 import { prepareImage, getImagesFromClipboard } from '../lib/prepareImage'
 import { COMIC_CAPTION_FONT_FAMILY, COMIC_TEXT_STROKE_SHADOW } from '../lib/comicCaptionStyle'
 import { createPagePath, editPagePath } from '../lib/comicEditor'
-import type { ComicFrame, OverlayPosition } from '../stores/useComicStore'
-import { useComicStore } from '../stores/useComicStore'
-
-const MAX_FRAMES = 12
+import { MAX_FRAMES, useComicStore, type ComicFrame, type OverlayPosition } from '../stores/useComicStore'
 
 const PLACEHOLDER_TEXT = 'Your text here'
 
@@ -296,6 +293,7 @@ export function EditPage() {
               alt=""
               className="max-w-full max-h-[70vh] w-auto h-auto object-contain block"
               draggable={false}
+              decoding="async"
             />
             {editingOnImage ? (
               <div
@@ -435,6 +433,8 @@ export function EditPage() {
                 alt=""
                 className="w-full h-full object-cover pointer-events-none"
                 draggable={false}
+                loading="lazy"
+                decoding="async"
               />
             </button>
           ))}

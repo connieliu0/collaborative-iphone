@@ -1,8 +1,8 @@
 import { supabase } from './supabase'
-import type { ComicFrame } from '../stores/useComicStore'
+import { MAX_FRAMES, type ComicFrame } from '../stores/useComicStore'
 
 const BUCKET = 'comic-frames'
-const MAX_FRAMES_CAP = 24
+const MAX_FRAMES_CAP = MAX_FRAMES
 
 function getFileExtension(file: File): string {
   if (/^image\/(heic|heif)/i.test(file.type)) return '.jpg'
@@ -69,14 +69,14 @@ async function getFrameUploadFile(frame: ComicFrame): Promise<File | null> {
   return null
 }
 
-export type PublishResult = { slug: string; comicId: string } | { error: string }
+export type PublishResult = { slug: string; comicId: string; uploadedUrls: string[] } | { error: string }
 
 export interface PublishOptions {
   mode: 'solo' | 'collab'
   title?: string
   /** Collaborator user IDs (max 5). Turn order is [owner, ...collaboratorIds]. */
   collaboratorIds?: string[]
-  /** For collab: total frame cap. Default turn_order.length * 3, max 24. */
+  /** For collab: total frame cap. Default turn_order.length * 3, max MAX_FRAMES. */
   maxFrames?: number
 }
 
@@ -145,31 +145,52 @@ export async function publishComic(
 
   const comicId = (comicRow as { id: string }).id
 
-  const uploadedUrls: string[] = []
+  // Prepare all files first (parallel)
+  const fileResults = await Promise.all(
+    frames.map(async (frame, i) => {
+      const file = await getFrameUploadFile(frame)
+      return { index: i, file }
+    })
+  )
+  const missingFile = fileResults.find((r) => !r.file)
+  if (missingFile) {
+    return { error: `Frame ${missingFile.index + 1} has no image file` }
+  }
 
-  for (let i = 0; i < frames.length; i++) {
-    const frame = frames[i]
-    const file = await getFrameUploadFile(frame)
-    if (!file) {
-      return { error: `Frame ${i + 1} has no image file` }
-    }
+  // Upload in parallel batches for speed
+  const BATCH_SIZE = 5
+  const uploadedUrls: string[] = new Array(frames.length)
 
-    const ext = getFileExtension(file)
-    const path = `${userId}/${comicId}/${frame.id}${ext}`
+  for (let batchStart = 0; batchStart < frames.length; batchStart += BATCH_SIZE) {
+    const batch = fileResults.slice(batchStart, batchStart + BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(async ({ index, file }) => {
+        const frame = frames[index]
+        const ext = getFileExtension(file!)
+        const path = `${userId}/${comicId}/${frame.id}${ext}`
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, file, {
-        contentType: file.type || 'image/png',
-        upsert: false,
+        const { error: uploadError } = await supabase.storage
+          .from(BUCKET)
+          .upload(path, file!, {
+            contentType: file!.type || 'image/png',
+            upsert: false,
+          })
+
+        if (uploadError) {
+          return { index, error: uploadError.message }
+        }
+
+        const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
+        return { index, url: urlData.publicUrl }
       })
+    )
 
-    if (uploadError) {
-      return { error: uploadError.message }
+    for (const result of results) {
+      if ('error' in result) {
+        return { error: result.error }
+      }
+      uploadedUrls[result.index] = result.url!
     }
-
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    uploadedUrls.push(urlData.publicUrl)
   }
 
   const framesRows = frames.map((frame, index) => ({
@@ -189,7 +210,7 @@ export async function publishComic(
     return { error: framesError.message }
   }
 
-  return { slug, comicId }
+  return { slug, comicId, uploadedUrls }
 }
 
 type FrameInsertRow = {
@@ -274,31 +295,58 @@ export async function updateComic(
   const slug = comicRow.slug as string
   const prefix = `${userId}/${comicId}`
 
-  const uploadedUrls: string[] = []
-  for (let i = 0; i < frames.length; i++) {
-    const frame = frames[i]
-    // Keep already-published remote images as-is. Deleting storage first used to
-    // 404 those URLs and drop original frames on republish.
-    if (!frame.imageFile && isRemoteImageUrl(frame.imageUrl)) {
-      uploadedUrls.push(frame.imageUrl)
-      continue
-    }
-
-    const file = await getFrameUploadFile(frame)
-    if (!file) {
-      return { error: `Frame ${i + 1} has no image file` }
-    }
-
-    const ext = getFileExtension(file)
-    const path = `${userId}/${comicId}/${frame.id}${ext}`
-    const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-      contentType: file.type || 'image/png',
-      upsert: true,
+  // Prepare files and identify which need uploading (parallel)
+  const preparedFrames = await Promise.all(
+    frames.map(async (frame, i) => {
+      if (!frame.imageFile && isRemoteImageUrl(frame.imageUrl)) {
+        return { index: i, existingUrl: frame.imageUrl }
+      }
+      const file = await getFrameUploadFile(frame)
+      return { index: i, file, frame }
     })
-    if (uploadError) return { error: uploadError.message }
+  )
 
-    const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
-    uploadedUrls.push(urlData.publicUrl)
+  const missingFile = preparedFrames.find((p) => !p.existingUrl && !p.file)
+  if (missingFile) {
+    return { error: `Frame ${missingFile.index + 1} has no image file` }
+  }
+
+  // Upload new files in parallel batches
+  const BATCH_SIZE = 5
+  const uploadedUrls: string[] = new Array(frames.length)
+
+  // First, fill in existing URLs
+  for (const p of preparedFrames) {
+    if (p.existingUrl) {
+      uploadedUrls[p.index] = p.existingUrl
+    }
+  }
+
+  // Then upload new files in batches
+  const toUpload = preparedFrames.filter((p) => p.file)
+  for (let batchStart = 0; batchStart < toUpload.length; batchStart += BATCH_SIZE) {
+    const batch = toUpload.slice(batchStart, batchStart + BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(async ({ index, file, frame }) => {
+        const ext = getFileExtension(file!)
+        const path = `${userId}/${comicId}/${frame!.id}${ext}`
+        const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file!, {
+          contentType: file!.type || 'image/png',
+          upsert: true,
+        })
+        if (uploadError) return { index, error: uploadError.message }
+
+        const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
+        return { index, url: urlData.publicUrl }
+      })
+    )
+
+    for (const result of results) {
+      if ('error' in result) {
+        return { error: result.error }
+      }
+      uploadedUrls[result.index] = result.url!
+    }
   }
 
   const framesRows: FrameInsertRow[] = frames.map((frame, index) => ({
@@ -359,7 +407,7 @@ export async function updateComic(
     }
   }
 
-  return { slug, comicId }
+  return { slug, comicId, uploadedUrls }
 }
 
 /** Update a collab comic's turn_order and current turn after inviting collaborators. */
@@ -440,7 +488,7 @@ export async function addFrameToComic(
   if (insertError) return { error: insertError.message }
 
   const newCount = currentFrameCount + 1
-  const maxFrames = comic.max_frames ?? 24
+  const maxFrames = comic.max_frames ?? MAX_FRAMES_CAP
   const turnOrder = comic.turn_order ?? [comic.owner_id]
   const ownerId = comic.owner_id
 

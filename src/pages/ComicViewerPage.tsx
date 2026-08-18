@@ -132,6 +132,7 @@ export function FrameContent({
                   : 'max-w-full max-h-full w-full h-full object-contain block'
             }
             draggable={false}
+            decoding="async"
           />
         )}
         {/* Render caption as an overlay on the image (we removed the dedicated overlay_text column). */}
@@ -253,6 +254,36 @@ export function ComicViewerPage() {
       supabase.removeChannel(channel)
     }
   }, [comic?.id, refetch])
+
+  // Preload adjacent images for smoother navigation
+  useEffect(() => {
+    if (!frames.length) return
+    const toPreload: string[] = []
+    // Preload next 2 and previous 1 images
+    for (const offset of [1, 2, -1]) {
+      const idx = currentIndex + offset
+      if (idx >= 0 && idx < frames.length) {
+        const url = frames[idx].image_url
+        if (url && !url.startsWith('blob:')) {
+          toPreload.push(url)
+        }
+      }
+    }
+    const links: HTMLLinkElement[] = []
+    for (const url of toPreload) {
+      const link = document.createElement('link')
+      link.rel = 'preload'
+      link.as = 'image'
+      link.href = url
+      document.head.appendChild(link)
+      links.push(link)
+    }
+    return () => {
+      for (const link of links) {
+        link.remove()
+      }
+    }
+  }, [currentIndex, frames])
 
   const handleEndComic = useCallback(async () => {
     if (!comic || !user || comic.owner_id !== user.id) return

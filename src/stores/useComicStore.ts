@@ -29,7 +29,7 @@ export interface ComicFrame {
   fontFamily: FontFamilyId
 }
 
-const MAX_FRAMES = 12
+export const MAX_FRAMES = 100
 
 const defaultOverlayPosition: OverlayPosition = { x: 50, y: DEFAULT_OVERLAY_Y }
 
@@ -88,6 +88,8 @@ interface ComicState {
   publishedSlug: string | null
   publishedComicId: string | null
   setPublishedComic: (args: { slug: string; comicId: string }) => void
+  /** Update frame URLs to remote URLs after publishing (avoids re-upload on republish) */
+  updateFrameUrls: (uploadedUrls: string[]) => void
   loadPublishedComic: (comicId: string, slug: string, title: string, frames: LoadedFrame[]) => void
   restoreDraftMeta: (args: { publishedSlug?: string | null; publishedComicId?: string | null }) => void
   editorHydrated: boolean
@@ -175,6 +177,30 @@ export const useComicStore = create<ComicState>((set) => ({
     set({
       publishedSlug: slug,
       publishedComicId: comicId,
+    })
+  },
+
+  updateFrameUrls: (uploadedUrls) => {
+    set((state) => {
+      const framesWithImageUrl = state.frames.filter((f) => f.imageUrl)
+      if (framesWithImageUrl.length !== uploadedUrls.length) {
+        return state
+      }
+      let urlIndex = 0
+      const updatedFrames = state.frames.map((frame) => {
+        if (!frame.imageUrl) return frame
+        const oldUrl = frame.imageUrl
+        const newUrl = uploadedUrls[urlIndex++]
+        if (oldUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(oldUrl)
+        }
+        return {
+          ...frame,
+          imageFile: null,
+          imageUrl: newUrl,
+        }
+      })
+      return { frames: updatedFrames }
     })
   },
 
