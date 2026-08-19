@@ -19,6 +19,8 @@ export interface ComicFlowHeaderProps {
   previewReturnTo?: string
   /** Edit header back-link. Defaults to /create. */
   backTo?: string
+  /** Start preview from this frame index (0-based). */
+  previewStartIndex?: number
 }
 
 export function ComicFlowHeader({
@@ -29,6 +31,7 @@ export function ComicFlowHeader({
   leadingActions,
   previewReturnTo,
   backTo = '/create',
+  previewStartIndex,
 }: ComicFlowHeaderProps) {
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
@@ -36,7 +39,7 @@ export function ComicFlowHeader({
   const returnTo = previewReturnTo ?? `${location.pathname}${location.search}`
 
   return (
-    <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2">
+    <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2 bg-white">
       <div className="flex flex-nowrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full overflow-x-auto">
         <div className="flex items-center min-w-0 shrink-0">
           {variant === 'create' && leftContent}
@@ -55,7 +58,7 @@ export function ComicFlowHeader({
           {!hideActions && (
             <Link
               to="/preview"
-              state={{ from: returnTo }}
+              state={{ from: returnTo, startIndex: previewStartIndex }}
               className="btn-primary shrink-0"
               aria-disabled={previewDisabled}
               onClick={(e) => {

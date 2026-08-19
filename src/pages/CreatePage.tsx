@@ -1149,6 +1149,7 @@ export function CreatePage() {
         hideActions={frames.length === 0}
         previewDisabled={frames.length === 0}
         previewReturnTo={createPagePath(publishedSlug, view)}
+        previewStartIndex={focusedFrameId ? frames.findIndex(f => f.id === focusedFrameId) : undefined}
         leftContent={
           <h1 className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
             Sequence, a comic maker

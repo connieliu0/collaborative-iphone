@@ -40,15 +40,18 @@ export function PreviewPage() {
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
   const location = useLocation()
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const startIndexFromState = (location.state as { startIndex?: number } | null)?.startIndex
+  const [currentIndex, setCurrentIndex] = useState(startIndexFromState && startIndexFromState >= 0 ? startIndexFromState : 0)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [publishSuccessSlug, setPublishSuccessSlug] = useState<string | null>(null)
   const [showTitleModal, setShowTitleModal] = useState(false)
   const [titleInput, setTitleInput] = useState('')
+  const [headerVisible, setHeaderVisible] = useState(true)
   const swipeStartRef = useRef<{ x: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const lastScrollYRef = useRef(0)
   const collabSessionCode =
     typeof window !== 'undefined' ? window.sessionStorage.getItem('collabSessionCode') : null
 
@@ -57,6 +60,57 @@ export function PreviewPage() {
   useEffect(() => {
     if (frames.length > 0) containerRef.current?.focus()
   }, [frames.length])
+
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      const deltaY = e.deltaY
+      
+      // Scrolling up even slightly (negative deltaY means scrolling up)
+      if (deltaY < 0 && !headerVisible) {
+        setHeaderVisible(true)
+      }
+      // Scrolling down (positive deltaY means scrolling down)
+      else if (deltaY > 0 && headerVisible) {
+        setHeaderVisible(false)
+      }
+    }
+
+    const handleTouchStart = (e: TouchEvent) => {
+      lastScrollYRef.current = e.touches[0].clientY
+    }
+
+    const handleTouchMove = (e: TouchEvent) => {
+      const currentY = e.touches[0].clientY
+      const previousY = lastScrollYRef.current
+      const deltaY = previousY - currentY
+      
+      // Scrolling up even slightly (negative deltaY means finger moving down = scroll up)
+      if (deltaY < 0 && !headerVisible) {
+        setHeaderVisible(true)
+      }
+      // Scrolling down (positive deltaY means finger moving up = scroll down)
+      else if (deltaY > 0 && headerVisible) {
+        setHeaderVisible(false)
+      }
+      
+      lastScrollYRef.current = currentY
+    }
+
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: true })
+      container.addEventListener('touchstart', handleTouchStart, { passive: true })
+      container.addEventListener('touchmove', handleTouchMove, { passive: true })
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleWheel)
+        container.removeEventListener('touchstart', handleTouchStart)
+        container.removeEventListener('touchmove', handleTouchMove)
+      }
+    }
+  }, [headerVisible])
 
   const displayFrames: FrameDisplay[] = frames
     .filter((frame) => frame.imageUrl || frame.websiteUrl)
@@ -70,6 +124,26 @@ export function PreviewPage() {
     font_color: frame.fontColor,
     font_family: frame.fontFamily,
   }))
+
+  // Adjust startIndex to account for filtered frames
+  useEffect(() => {
+    if (startIndexFromState !== undefined && startIndexFromState >= 0 && frames.length > 0) {
+      // Count how many frames with images exist before the startIndex
+      let displayIndex = 0
+      for (let i = 0; i < Math.min(startIndexFromState, frames.length); i++) {
+        if (frames[i].imageUrl || frames[i].websiteUrl) {
+          displayIndex++
+        }
+      }
+      // If the frame at startIndex also has an image, that's our target
+      if (startIndexFromState < frames.length && (frames[startIndexFromState].imageUrl || frames[startIndexFromState].websiteUrl)) {
+        setCurrentIndex(Math.min(displayIndex, displayFrames.length - 1))
+      } else {
+        // Otherwise use the count we accumulated
+        setCurrentIndex(Math.min(displayIndex, Math.max(0, displayFrames.length - 1)))
+      }
+    }
+  }, [startIndexFromState, frames, displayFrames.length])
 
   const goPrev = useCallback(() => {
     setCurrentIndex((i) => (i > 0 ? i - 1 : i))
@@ -228,7 +302,7 @@ export function PreviewPage() {
         </div>
       )}
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className={`absolute top-4 right-4 z-10 flex items-center gap-2 transition-transform duration-300 ${headerVisible ? 'translate-y-0' : '-translate-y-24'}`}>
         <button
           type="button"
           onClick={handlePublishClick}
@@ -249,7 +323,7 @@ export function PreviewPage() {
       </div>
 
       {publishError && (
-        <p className="absolute top-20 left-4 right-4 z-10 text-sm text-red-400 text-right" role="alert">
+        <p className={`absolute top-20 left-4 right-4 z-10 text-sm text-red-400 text-right transition-transform duration-300 ${headerVisible ? 'translate-y-0' : '-translate-y-24'}`} role="alert">
           {publishError}
         </p>
       )}
