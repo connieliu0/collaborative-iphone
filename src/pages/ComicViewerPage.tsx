@@ -46,6 +46,7 @@ import {
   normalizeLegacyComicCaptionStyle,
   resolveCaptionOverlayY,
 } from '../lib/comicCaptionStyle'
+import { iframeSrcForWebsiteUrl } from '../lib/websiteLink'
 
 const SWIPE_THRESHOLD_PX = 50
 
@@ -109,7 +110,7 @@ export function FrameContent({
       >
         {frame.website_url ? (
           <iframe
-            src={frame.website_url}
+            src={iframeSrcForWebsiteUrl(frame.website_url)}
             title="Website preview"
             className={
               naturalSize
@@ -118,7 +119,8 @@ export function FrameContent({
                   ? 'w-full h-full object-cover block'
                   : 'max-w-full max-h-full w-full h-full object-contain block'
             }
-            sandbox="allow-scripts allow-same-origin"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            allow="encrypted-media; clipboard-write; picture-in-picture"
           />
         ) : (
           <img

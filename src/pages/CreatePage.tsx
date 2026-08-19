@@ -24,6 +24,7 @@ import {
 } from '../lib/comicCaptionStyle'
 import { MAX_FRAMES, useComicStore, type ComicFrame } from '../stores/useComicStore'
 import { createPagePath, editPagePath } from '../lib/comicEditor'
+import { parseWebsiteLinkInput, websiteHostname } from '../lib/websiteLink'
 
 const captionFontStyle: React.CSSProperties = {
   fontFamily: COMIC_CAPTION_FONT_FAMILY,
@@ -77,7 +78,8 @@ function LinkInputModal({
   onSave: (frameId: string, url: string) => void
 }) {
   const [url, setUrl] = useState(initialUrl || '')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useLayoutEffect(() => {
     inputRef.current?.focus()
@@ -85,10 +87,13 @@ function LinkInputModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (url.trim()) {
-      onSave(frameId, url.trim())
-      onClose()
+    const parsed = parseWebsiteLinkInput(url)
+    if ('error' in parsed) {
+      setError(parsed.error)
+      return
     }
+    onSave(frameId, parsed.url)
+    onClose()
   }
 
   return (
@@ -100,16 +105,27 @@ function LinkInputModal({
         className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold mb-4">Add Website Link</h3>
+        <h3 className="text-lg font-semibold mb-1">Add Website Link</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Paste a URL, or an Instagram embed code for a single post.
+        </p>
         <form onSubmit={handleSubmit}>
-          <input
+          <textarea
             ref={inputRef}
-            type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => {
+              setUrl(e.target.value)
+              if (error) setError(null)
+            }}
             placeholder="https://example.com"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={5}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y min-h-[6rem] text-sm"
           />
+          {error && (
+            <p className="mt-2 text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          )}
           <div className="mt-4 flex gap-2 justify-end">
             <button
               type="button"
@@ -249,7 +265,7 @@ function SortableGridItem({
         {frame.websiteUrl ? (
           <div className="w-full h-full flex items-center justify-center bg-white">
             <img
-              src={`https://www.google.com/s2/favicons?domain=${new URL(frame.websiteUrl).hostname}&sz=128`}
+              src={`https://www.google.com/s2/favicons?domain=${websiteHostname(frame.websiteUrl) ?? 'instagram.com'}&sz=128`}
               alt=""
               className="w-16 h-16 object-contain pointer-events-none"
               draggable={false}
@@ -492,7 +508,7 @@ function SortableListItem({
             <>
               <div className="h-full w-full min-h-14 bg-white flex items-center justify-center">
                 <img
-                  src={`https://www.google.com/s2/favicons?domain=${new URL(frame.websiteUrl).hostname}&sz=128`}
+                  src={`https://www.google.com/s2/favicons?domain=${websiteHostname(frame.websiteUrl) ?? 'instagram.com'}&sz=128`}
                   alt=""
                   className="w-8 h-8 object-contain pointer-events-none"
                   draggable={false}
