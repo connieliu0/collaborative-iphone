@@ -15,6 +15,10 @@ const PUBLISH_AUTH_MESSAGE = 'Create a free account to publish your comic'
 
 const btnPrimary = 'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 
+function isPreviewableFrame(frame: { imageUrl: string; websiteUrl?: string; caption: string }) {
+  return Boolean(frame.imageUrl || frame.websiteUrl || frame.caption.trim())
+}
+
 function resolvePreviewReturnPath(
   location: ReturnType<typeof useLocation>,
   collabSessionCode: string | null,
@@ -112,9 +116,7 @@ export function PreviewPage() {
     }
   }, [headerVisible])
 
-  const displayFrames: FrameDisplay[] = frames
-    .filter((frame) => frame.imageUrl || frame.websiteUrl)
-    .map((frame) => ({
+  const displayFrames: FrameDisplay[] = frames.filter(isPreviewableFrame).map((frame) => ({
     image_url: frame.imageUrl,
     website_url: frame.websiteUrl,
     caption: frame.caption,
@@ -128,18 +130,15 @@ export function PreviewPage() {
   // Adjust startIndex to account for filtered frames
   useEffect(() => {
     if (startIndexFromState !== undefined && startIndexFromState >= 0 && frames.length > 0) {
-      // Count how many frames with images exist before the startIndex
       let displayIndex = 0
       for (let i = 0; i < Math.min(startIndexFromState, frames.length); i++) {
-        if (frames[i].imageUrl || frames[i].websiteUrl) {
+        if (isPreviewableFrame(frames[i])) {
           displayIndex++
         }
       }
-      // If the frame at startIndex also has an image, that's our target
-      if (startIndexFromState < frames.length && (frames[startIndexFromState].imageUrl || frames[startIndexFromState].websiteUrl)) {
+      if (startIndexFromState < frames.length && isPreviewableFrame(frames[startIndexFromState])) {
         setCurrentIndex(Math.min(displayIndex, displayFrames.length - 1))
       } else {
-        // Otherwise use the count we accumulated
         setCurrentIndex(Math.min(displayIndex, Math.max(0, displayFrames.length - 1)))
       }
     }

@@ -122,7 +122,7 @@ export function FrameContent({
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             allow="encrypted-media; clipboard-write; picture-in-picture"
           />
-        ) : (
+        ) : frame.image_url ? (
           <img
             src={frame.image_url}
             alt=""
@@ -135,6 +135,15 @@ export function FrameContent({
             }
             draggable={false}
             decoding="async"
+          />
+        ) : (
+          <div
+            className={
+              naturalSize
+                ? 'w-full min-h-[50vh] bg-black'
+                : 'w-full h-full min-h-0 bg-black'
+            }
+            aria-hidden
           />
         )}
         {/* Render caption as an overlay on the image (we removed the dedicated overlay_text column). */}
