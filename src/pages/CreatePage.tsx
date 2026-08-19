@@ -141,7 +141,6 @@ function SortableGridItem({
   onNavigate,
   onUpload,
   onEnterFrame,
-  nextFrameId,
   focusCaptionFrameId,
   onFocusCaptionConsumed,
   showInsertionBefore,
@@ -154,8 +153,7 @@ function SortableGridItem({
   onRemove: (id: string) => void
   onNavigate: (id: string) => void
   onUpload: (id: string) => void
-  onEnterFrame: (frame: ComicFrame, nextFrameId?: string) => void
-  nextFrameId?: string
+  onEnterFrame: (frame: ComicFrame) => void
   focusCaptionFrameId?: string | null
   onFocusCaptionConsumed: () => void
   showInsertionBefore?: boolean
@@ -240,7 +238,7 @@ function SortableGridItem({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            onEnterFrame(frame, nextFrameId)
+            onEnterFrame(frame)
           }
         }}
         tabIndex={0}
@@ -343,7 +341,7 @@ function SortableGridItem({
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   e.stopPropagation()
-                  onEnterFrame(frame, nextFrameId)
+                  onEnterFrame(frame)
                 }
               }}
                       onBlur={() => {
@@ -375,7 +373,6 @@ function SortableListItem({
   onUpload,
   onAddLink,
   onEnterFrame,
-  nextFrameId,
   focusCaptionFrameId,
   onFocusCaptionConsumed,
   showInsertionBefore,
@@ -389,8 +386,7 @@ function SortableListItem({
   onRemove: (id: string) => void
   onUpload: (id: string) => void
   onAddLink: (id: string) => void
-  onEnterFrame: (frame: ComicFrame, nextFrameId?: string) => void
-  nextFrameId?: string
+  onEnterFrame: (frame: ComicFrame) => void
   focusCaptionFrameId?: string | null
   onFocusCaptionConsumed: () => void
   showInsertionBefore?: boolean
@@ -477,7 +473,7 @@ function SortableListItem({
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            onEnterFrame(frame, nextFrameId)
+            onEnterFrame(frame)
           }
         }}
         {...listAttributes}
@@ -547,7 +543,7 @@ function SortableListItem({
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   e.stopPropagation()
-                  onEnterFrame(frame, nextFrameId)
+                  onEnterFrame(frame)
                 }
               }}
               onPaste={(e) => {
@@ -1035,7 +1031,7 @@ export function CreatePage() {
     updateFrame(frameId, { websiteUrl: url })
   }
 
-  const handleEnterOnFrame = (frame: ComicFrame, nextFrameId?: string) => {
+  const handleEnterOnFrame = (frame: ComicFrame) => {
     // Save state for undo
     setUndoSnapshot([...frames])
     
@@ -1316,7 +1312,6 @@ export function CreatePage() {
                         onNavigate={handleNavigateToEdit}
                         onUpload={handleUploadForFrame}
                         onEnterFrame={handleEnterOnFrame}
-                        nextFrameId={frames[index + 1]?.id}
                         focusCaptionFrameId={focusCaptionFrameId}
                         onFocusCaptionConsumed={handleFocusCaptionConsumed}
                         showInsertionBefore={
@@ -1367,7 +1362,6 @@ export function CreatePage() {
                       onUpload={handleUploadForFrame}
                       onAddLink={handleAddLink}
                       onEnterFrame={handleEnterOnFrame}
-                      nextFrameId={frames[index + 1]?.id}
                       focusCaptionFrameId={focusCaptionFrameId}
                       onFocusCaptionConsumed={handleFocusCaptionConsumed}
                       showInsertionBefore={
