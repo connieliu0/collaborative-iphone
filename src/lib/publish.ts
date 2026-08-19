@@ -187,7 +187,7 @@ export async function publishComic(
 
     for (const result of results) {
       if ('error' in result) {
-        return { error: result.error }
+        return { error: result.error! }
       }
       uploadedUrls[result.index] = result.url!
     }
@@ -343,7 +343,7 @@ export async function updateComic(
 
     for (const result of results) {
       if ('error' in result) {
-        return { error: result.error }
+        return { error: result.error! }
       }
       uploadedUrls[result.index] = result.url!
     }
