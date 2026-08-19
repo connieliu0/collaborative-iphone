@@ -1041,9 +1041,10 @@ export function CreatePage() {
     
     const id = addEmptyFrame()
     if (id) {
-      // Move the new frame from the end to right after the current frame
-      const newFrames = [...frames]
-      const newFrame = newFrames.pop()! // Remove from end
+      // Get the updated frames from the store (includes the newly added frame)
+      const updatedFrames = useComicStore.getState().frames
+      const newFrames = [...updatedFrames]
+      const newFrame = newFrames.pop()! // Remove new frame from end
       newFrames.splice(currentIndex + 1, 0, newFrame) // Insert after current
       reorderFrames(newFrames)
       setFocusCaptionFrameId(id)
