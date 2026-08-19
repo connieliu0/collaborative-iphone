@@ -854,6 +854,7 @@ export function CreatePage() {
   const [editingFeedFrame, setEditingFeedFrame] = useState<ComicFrame | null>(null)
   const [linkModalFrameId, setLinkModalFrameId] = useState<string | null>(null)
   const focusHandledRef = useRef(false)
+  const [undoSnapshot, setUndoSnapshot] = useState<ComicFrame[] | null>(null)
 
   const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame, publishedSlug, editorHydrated, editorHydrateError } = useComicStore()
   const hasFrames = frames.length > 0
@@ -966,6 +967,10 @@ export function CreatePage() {
           const lines = text.split(/\r?\n/).filter((line) => line.trim())
           if (lines.length > 1) {
             e.preventDefault()
+            
+            // Save state for undo
+            setUndoSnapshot([...frames])
+            
             const remaining = MAX_FRAMES - frames.length
             const linesToAdd = lines.slice(0, remaining)
             
@@ -996,6 +1001,26 @@ export function CreatePage() {
     return () => document.removeEventListener('paste', handlePaste)
   }, [handlePaste])
 
+  // Handle undo (Ctrl+Z / Cmd+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        // Only undo if not typing in a text field
+        const activeEl = document.activeElement
+        const isEditingText = activeEl instanceof HTMLTextAreaElement || activeEl instanceof HTMLInputElement
+        
+        if (!isEditingText && undoSnapshot) {
+          e.preventDefault()
+          reorderFrames(undoSnapshot)
+          setUndoSnapshot(null)
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [undoSnapshot, reorderFrames])
+
   const handleUploadForFrame = (id: string) => {
     setUploadTargetId(id)
     openFileInput()
@@ -1009,18 +1034,31 @@ export function CreatePage() {
     updateFrame(frameId, { websiteUrl: url })
   }
 
-  const handleEnterOnFrame = (_frame: ComicFrame, nextFrameId?: string) => {
-    if (nextFrameId) {
-      setFocusCaptionFrameId(nextFrameId)
-      return
-    }
+  const handleEnterOnFrame = (frame: ComicFrame, nextFrameId?: string) => {
+    // Save state for undo
+    setUndoSnapshot([...frames])
+    
+    // Always create a new blank row and insert it right after the current row
+    const currentIndex = frames.findIndex(f => f.id === frame.id)
+    if (currentIndex === -1) return
+    
     const id = addEmptyFrame()
-    if (id) setFocusCaptionFrameId(id)
+    if (id) {
+      // Move the new frame from the end to right after the current frame
+      const newFrames = [...frames]
+      const newFrame = newFrames.pop()! // Remove from end
+      newFrames.splice(currentIndex + 1, 0, newFrame) // Insert after current
+      reorderFrames(newFrames)
+      setFocusCaptionFrameId(id)
+    }
   }
 
   const handleMultiLinePaste = useCallback(
     (frameId: string, lines: string[]) => {
       if (lines.length === 0) return
+      
+      // Save state for undo
+      setUndoSnapshot([...frames])
       
       // First line updates the current frame's caption
       updateFrame(frameId, { caption: lines[0].trim() })
@@ -1047,7 +1085,7 @@ export function CreatePage() {
         setLimitMessageShown(true)
       }
     },
-    [frames.length, updateFrame, addEmptyFrame]
+    [frames, updateFrame, addEmptyFrame]
   )
 
   const handleFocusCaptionConsumed = () => {
