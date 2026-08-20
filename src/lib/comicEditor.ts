@@ -18,7 +18,7 @@ export function editPagePath(frameId: string, comicSlug?: string | null): string
 }
 
 export type FetchComicForEditorResult =
-  | { comicId: string; slug: string; title: string; frames: LoadedFrame[] }
+  | { comicId: string; slug: string; title: string; ownerId: string; frames: LoadedFrame[] }
   | { error: string }
 
 export async function fetchComicForEditor(
@@ -29,7 +29,7 @@ export async function fetchComicForEditor(
 
   let query = supabase
     .from('comics')
-    .select('id, slug, title')
+    .select('id, slug, title, owner_id')
 
   if (UUID_RE.test(id)) {
     query = query.or(`id.eq.${id},slug.eq.${id}`)
@@ -54,6 +54,7 @@ export async function fetchComicForEditor(
     comicId: comic.id,
     slug: comic.slug,
     title: comic.title || 'Comic Title',
+    ownerId: comic.owner_id as string,
     frames: frames as LoadedFrame[],
   }
 }

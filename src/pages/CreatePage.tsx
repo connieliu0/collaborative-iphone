@@ -22,9 +22,13 @@ import {
   COMIC_CAPTION_FONT_FAMILY,
   COMIC_TEXT_STROKE_SHADOW,
 } from '../lib/comicCaptionStyle'
+import { useAuthModal } from '../contexts/AuthModalContext'
+import { useAuth } from '../hooks/useAuth'
 import { MAX_FRAMES, useComicStore, type ComicFrame } from '../stores/useComicStore'
 import { createPagePath, editPagePath } from '../lib/comicEditor'
 import { parseWebsiteLinkInput, websiteHostname } from '../lib/websiteLink'
+
+const CREATE_AUTH_MESSAGE = 'Sign in to create your comic'
 
 const captionFontStyle: React.CSSProperties = {
   fontFamily: COMIC_CAPTION_FONT_FAMILY,
@@ -857,6 +861,8 @@ function CreatePageSkeleton() {
 export function CreatePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+  const { openAuthModal } = useAuthModal()
   const [searchParams, setSearchParams] = useSearchParams()
   const [hydrated, setHydrated] = useState(false)
   const [limitMessageShown, setLimitMessageShown] = useState(false)
@@ -883,6 +889,12 @@ export function CreatePage() {
   useEffect(() => {
     setHydrated(true)
   }, [])
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      openAuthModal(CREATE_AUTH_MESSAGE)
+    }
+  }, [authLoading, user, openAuthModal])
 
   // Handle ?view=list&focus=first from "Describe a feeling" homepage entry
   useEffect(() => {
@@ -1166,8 +1178,16 @@ export function CreatePage() {
     navigate(editPagePath(id, publishedSlug))
   }
 
-  if (!hydrated || !editorHydrated) {
+  if (!hydrated || authLoading || !editorHydrated) {
     return <CreatePageSkeleton />
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
+        <p className="text-gray-600 mb-4">Sign in to create your comic</p>
+      </div>
+    )
   }
 
   if (editorHydrateError && !hasFrames) {

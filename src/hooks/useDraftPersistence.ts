@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { fetchComicForEditor } from '../lib/comicEditor'
 import type { ComicFrame } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
@@ -100,12 +101,24 @@ function draftMatchesComic(
   )
 }
 
+const OWNERSHIP_ERROR = 'You can only edit your own comics'
+
+async function verifyComicOwnership(
+  slugOrId: string,
+  userId: string
+): Promise<{ error?: string }> {
+  const result = await fetchComicForEditor(slugOrId)
+  if ('error' in result) return { error: result.error }
+  if (result.ownerId !== userId) return { error: OWNERSHIP_ERROR }
+  return {}
+}
+
 /**
  * Load comic draft (or a published comic from ?comic=) on mount and
  * persist frame images + metadata to IndexedDB whenever frames change.
  */
 export function useDraftPersistence(
-  _user: unknown,
+  user: User | null,
   authLoading: boolean,
   comicSlugFromUrl: string | null
 ): void {
@@ -129,6 +142,12 @@ export function useDraftPersistence(
 
     const key = loadKey(comicSlugFromUrl)
     const current = useComicStore.getState()
+
+    // Solo create/edit requires a signed-in user.
+    if (!user) {
+      setEditorHydrated({ hydrated: true })
+      return
+    }
 
     // Already loaded this exact target and editor is ready.
     if (loadedForKeyRef.current === key && current.editorHydrated) {
@@ -201,6 +220,15 @@ export function useDraftPersistence(
           (!comicSlugFromUrl || draftMatchesComic(draft, comicSlugFromUrl))
 
         if (useLocalDraft && draft?.frames?.length) {
+          if (comicSlugFromUrl) {
+            const ownership = await verifyComicOwnership(comicSlugFromUrl, user.id)
+            if (cancelled) return
+            if (ownership.error) {
+              loadedForKeyRef.current = key
+              setEditorHydrated({ hydrated: true, error: ownership.error })
+              return
+            }
+          }
           hadFramesThisSession.current = true
           setFrames(draft.frames.map(storedToFrame))
           setComicTitle(draft.title?.trim() || 'Comic Title')
@@ -219,6 +247,11 @@ export function useDraftPersistence(
           if ('error' in result) {
             loadedForKeyRef.current = key
             setEditorHydrated({ hydrated: true, error: result.error })
+            return
+          }
+          if (result.ownerId !== user.id) {
+            loadedForKeyRef.current = key
+            setEditorHydrated({ hydrated: true, error: OWNERSHIP_ERROR })
             return
           }
           hadFramesThisSession.current = true
@@ -246,6 +279,7 @@ export function useDraftPersistence(
     }
   }, [
     authLoading,
+    user,
     comicSlugFromUrl,
     setFrames,
     setComicTitle,

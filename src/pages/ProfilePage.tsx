@@ -99,6 +99,11 @@ export function ProfilePage() {
       setEditingId(null)
       return
     }
+    if (result.ownerId !== user.id) {
+      setDeleteError('You can only edit your own comics')
+      setEditingId(null)
+      return
+    }
 
     loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
     setEditorHydrated({ hydrated: true })
