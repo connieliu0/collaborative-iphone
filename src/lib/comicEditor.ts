@@ -3,6 +3,34 @@ import type { LoadedFrame } from '../stores/useComicStore'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+export const PUBLISHED_COMIC_ID_KEY = 'publishedComicId'
+export const PUBLISHED_SLUG_KEY = 'publishedSlug'
+
+export function readPublishedMetaFromSession(): {
+  publishedComicId: string | null
+  publishedSlug: string | null
+} {
+  if (typeof window === 'undefined') {
+    return { publishedComicId: null, publishedSlug: null }
+  }
+  return {
+    publishedComicId: window.sessionStorage.getItem(PUBLISHED_COMIC_ID_KEY),
+    publishedSlug: window.sessionStorage.getItem(PUBLISHED_SLUG_KEY),
+  }
+}
+
+export function writePublishedMetaToSession(comicId: string, slug: string): void {
+  if (typeof window === 'undefined') return
+  window.sessionStorage.setItem(PUBLISHED_COMIC_ID_KEY, comicId)
+  window.sessionStorage.setItem(PUBLISHED_SLUG_KEY, slug)
+}
+
+export function clearPublishedMetaFromSession(): void {
+  if (typeof window === 'undefined') return
+  window.sessionStorage.removeItem(PUBLISHED_COMIC_ID_KEY)
+  window.sessionStorage.removeItem(PUBLISHED_SLUG_KEY)
+}
+
 export function createPagePath(comicSlug?: string | null, view?: string): string {
   const params = new URLSearchParams()
   if (comicSlug) params.set('comic', comicSlug)

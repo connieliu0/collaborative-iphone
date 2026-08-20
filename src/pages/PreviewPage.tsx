@@ -5,7 +5,7 @@ import { PublishSuccessModal } from '../components/PublishSuccessModal'
 import { useAuthModal } from '../contexts/AuthModalContext'
 import { useAuth } from '../hooks/useAuth'
 import { publishComic, updateComic } from '../lib/publish'
-import { createPagePath } from '../lib/comicEditor'
+import { createPagePath, fetchComicForEditor, readPublishedMetaFromSession } from '../lib/comicEditor'
 import { useComicStore } from '../stores/useComicStore'
 import { FrameContent, type FrameDisplay } from './ComicViewerPage'
 
@@ -196,8 +196,32 @@ export function PreviewPage() {
     setPublishing(true)
     const publishFrames = frames.filter((frame) => frame.imageUrl || frame.websiteUrl || frame.caption.trim())
     const finalTitle = titleInput.trim() || 'Comic Title'
-    const result = publishedComicId
-      ? await updateComic(publishedComicId, user!.id, publishFrames, finalTitle)
+
+    let comicId = publishedComicId
+    if (!comicId) {
+      const sessionMeta = readPublishedMetaFromSession()
+      comicId = sessionMeta.publishedComicId
+    }
+    if (!comicId) {
+      const slug = publishedSlug ?? readPublishedMetaFromSession().publishedSlug
+      if (slug) {
+        const lookup = await fetchComicForEditor(slug)
+        if ('error' in lookup) {
+          setPublishing(false)
+          setPublishError(lookup.error)
+          return
+        }
+        if (lookup.ownerId !== user!.id) {
+          setPublishing(false)
+          setPublishError('You can only edit your own comics')
+          return
+        }
+        comicId = lookup.comicId
+      }
+    }
+
+    const result = comicId
+      ? await updateComic(comicId, user!.id, publishFrames, finalTitle)
       : await publishComic(user!.id, publishFrames, { mode: 'solo', title: finalTitle })
     setPublishing(false)
     if ('error' in result) {

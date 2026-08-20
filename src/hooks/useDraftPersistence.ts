@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { fetchComicForEditor } from '../lib/comicEditor'
+import { fetchComicForEditor, readPublishedMetaFromSession } from '../lib/comicEditor'
 import type { ComicFrame } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
 import {
@@ -232,9 +232,10 @@ export function useDraftPersistence(
           hadFramesThisSession.current = true
           setFrames(draft.frames.map(storedToFrame))
           setComicTitle(draft.title?.trim() || 'Comic Title')
+          const sessionMeta = readPublishedMetaFromSession()
           restoreDraftMeta({
-            publishedSlug: draft.publishedSlug ?? null,
-            publishedComicId: draft.publishedComicId ?? null,
+            publishedSlug: draft.publishedSlug ?? sessionMeta.publishedSlug ?? null,
+            publishedComicId: draft.publishedComicId ?? sessionMeta.publishedComicId ?? null,
           })
           loadedForKeyRef.current = key
           setEditorHydrated({ hydrated: true })
@@ -303,6 +304,14 @@ export function useDraftPersistence(
     let cancelled = false
     framesToDraftPayload(frames, comicTitle, publishedComicId, publishedSlug).then(async (payload) => {
       if (cancelled || !payload) return
+      const current = useComicStore.getState()
+      // Avoid a stale async save wiping publish metadata after a successful publish.
+      if (!payload.publishedComicId && current.publishedComicId) {
+        payload.publishedComicId = current.publishedComicId
+      }
+      if (!payload.publishedSlug && current.publishedSlug) {
+        payload.publishedSlug = current.publishedSlug
+      }
       await setDraft(payload)
     })
     return () => {

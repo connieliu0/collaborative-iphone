@@ -260,12 +260,21 @@ async function replaceComicFrames(
 
   if (overlap > 0) {
     const updates = await Promise.all(
-      rows.slice(0, overlap).map((row, i) =>
-        supabase.from('frames').update(row).eq('id', existingIds[i])
-      )
+      rows.slice(0, overlap).map(async (row, i) => {
+        const { data, error } = await supabase
+          .from('frames')
+          .update(row)
+          .eq('id', existingIds[i])
+          .select('id')
+        if (error) return { error: error.message }
+        if (!data?.length) {
+          return { error: `Failed to update frame ${i + 1} (no rows affected — check ownership)` }
+        }
+        return {}
+      })
     )
-    const failed = updates.find((result) => result.error)
-    if (failed?.error) return { error: failed.error.message }
+    const failed = updates.find((result) => 'error' in result && result.error)
+    if (failed && 'error' in failed) return { error: failed.error! }
   }
 
   if (rows.length > existingIds.length) {
@@ -396,7 +405,7 @@ export async function updateComic(
   }
 
   // Ensure comic is marked complete for solo.
-  const { error: updateComicError } = await supabase
+  const { data: updatedComicRows, error: updateComicError } = await supabase
     .from('comics')
     .update({
       title: title?.trim() || 'Comic Title',
@@ -406,10 +415,14 @@ export async function updateComic(
     })
     .eq('id', comicId)
     .eq('owner_id', userId)
+    .select('id')
 
   if (updateComicError) {
     console.error('updateComic: failed to update comic status', { comicId, userId, error: updateComicError })
     return { error: updateComicError.message }
+  }
+  if (!updatedComicRows?.length) {
+    return { error: 'Failed to update comic (you may not be the owner)' }
   }
 
   const keepNames = new Set(

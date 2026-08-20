@@ -1,5 +1,9 @@
 import { create } from 'zustand'
 import {
+  clearPublishedMetaFromSession,
+  writePublishedMetaToSession,
+} from '../lib/comicEditor'
+import {
   DEFAULT_COMIC_FONT_COLOR,
   DEFAULT_COMIC_FONT_SIZE,
   DEFAULT_OVERLAY_Y,
@@ -165,6 +169,7 @@ export const useComicStore = create<ComicState>((set) => ({
       state.frames.forEach((f) => {
         if (f.imageUrl?.startsWith('blob:')) URL.revokeObjectURL(f.imageUrl)
       })
+      clearPublishedMetaFromSession()
       return {
         frames: [],
         comicTitle: 'Comic Title',
@@ -175,6 +180,7 @@ export const useComicStore = create<ComicState>((set) => ({
   },
 
   setPublishedComic: ({ slug, comicId }) => {
+    writePublishedMetaToSession(comicId, slug)
     set({
       publishedSlug: slug,
       publishedComicId: comicId,
@@ -260,5 +266,6 @@ export const useComicStore = create<ComicState>((set) => ({
         publishedComicId: comicId,
       }
     })
+    writePublishedMetaToSession(comicId, slug)
   },
 }))
