@@ -327,9 +327,14 @@ export async function updateComic(
     })
   )
 
-  const missingFile = preparedFrames.find((p) => !('existingUrl' in p) && !('file' in p) && !('noImageNeeded' in p))
-  if (missingFile) {
-    return { error: `Frame ${missingFile.index + 1} has no image file` }
+  const missingFileIndex = preparedFrames.findIndex((p) => {
+    const hasExisting = 'existingUrl' in p && p.existingUrl
+    const hasFile = 'file' in p && p.file
+    const noImageNeeded = 'noImageNeeded' in p && p.noImageNeeded
+    return !hasExisting && !hasFile && !noImageNeeded
+  })
+  if (missingFileIndex !== -1) {
+    return { error: `Frame ${missingFileIndex + 1} has no image file` }
   }
 
   // Upload new files in parallel batches
@@ -383,14 +388,6 @@ export async function updateComic(
     font_color: frame.fontColor,
     website_url: frame.websiteUrl ?? null,
   }))
-
-  // Debug: log frames being updated
-  console.log('updateComic: frames to update', framesRows.map((r, i) => ({
-    order: r.order,
-    hasImage: Boolean(r.image_url),
-    websiteUrl: r.website_url,
-    originalWebsiteUrl: frames[i].websiteUrl,
-  })))
 
   const replaceResult = await replaceComicFrames(comicId, framesRows)
   if (replaceResult.error) {

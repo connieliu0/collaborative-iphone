@@ -195,17 +195,6 @@ export function PreviewPage() {
     setPublishError(null)
     setPublishing(true)
     const publishFrames = frames.filter((frame) => frame.imageUrl || frame.websiteUrl || frame.caption.trim())
-    
-    // Debug: log what we're about to publish
-    console.log('handlePublish: frames to publish', publishFrames.map((f, i) => ({
-      index: i,
-      id: f.id,
-      hasImageUrl: Boolean(f.imageUrl),
-      imageUrlPrefix: f.imageUrl?.substring(0, 30),
-      websiteUrl: f.websiteUrl,
-    })))
-    console.log('handlePublish: publishedComicId', publishedComicId)
-    
     const finalTitle = titleInput.trim() || 'Comic Title'
     const result = publishedComicId
       ? await updateComic(publishedComicId, user!.id, publishFrames, finalTitle)
