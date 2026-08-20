@@ -15,6 +15,18 @@ import {
 
 const DRAFT_VERSION = 1
 
+function loadKey(comicSlugFromUrl: string | null): string {
+  return comicSlugFromUrl ?? '__new__'
+}
+
+function storeMatchesComicSlug(
+  comicSlugFromUrl: string,
+  publishedSlug: string | null,
+  publishedComicId: string | null
+): boolean {
+  return publishedSlug === comicSlugFromUrl || publishedComicId === comicSlugFromUrl
+}
+
 function storedToFrame(d: DraftFrameStored): ComicFrame {
   const blobUrl = d.imageBlob ? URL.createObjectURL(d.imageBlob) : ''
   return {
@@ -108,99 +120,125 @@ export function useDraftPersistence(
     loadPublishedComic,
     setEditorHydrated,
   } = useComicStore()
-  const hasLoadedDraft = useRef(false)
+  const loadedForKeyRef = useRef<string | null>(null)
   /** True after we've had at least one frame this session (so we can tell "user cleared all" from "just refreshed". */
   const hadFramesThisSession = useRef(false)
 
   useEffect(() => {
     if (authLoading) return
+
+    const key = loadKey(comicSlugFromUrl)
     const current = useComicStore.getState()
-    const urlMismatch =
-      Boolean(comicSlugFromUrl) &&
-      current.publishedSlug !== comicSlugFromUrl &&
-      current.publishedComicId !== comicSlugFromUrl
-    if (urlMismatch) {
-      hasLoadedDraft.current = false
-      setEditorHydrated({ hydrated: false })
+
+    // Already loaded this exact target and editor is ready.
+    if (loadedForKeyRef.current === key && current.editorHydrated) {
+      return
     }
-    if (hasLoadedDraft.current) return
-    const currentFrames = current.frames
-    if (currentFrames.length > 0 && !urlMismatch) {
-      hasLoadedDraft.current = true
+
+    // Profile (or similar) pre-loaded the comic into the store before navigating here.
+    if (
+      comicSlugFromUrl &&
+      storeMatchesComicSlug(comicSlugFromUrl, current.publishedSlug, current.publishedComicId) &&
+      current.frames.length > 0
+    ) {
+      loadedForKeyRef.current = key
       hadFramesThisSession.current = true
       setEditorHydrated({ hydrated: true })
       return
     }
 
+    // In-progress new comic (no ?comic=) with frames already in memory.
+    if (!comicSlugFromUrl && current.frames.length > 0) {
+      loadedForKeyRef.current = key
+      hadFramesThisSession.current = true
+      setEditorHydrated({ hydrated: true })
+      return
+    }
+
+    setEditorHydrated({ hydrated: false })
+
     let cancelled = false
     ;(async () => {
-      let draft = await getDraft()
-      if (!draft?.frames?.length) {
-        const legacy = getLegacyDraft()
-        if (legacy?.frames?.length) {
-          const blobs: Blob[] = []
-          for (const f of legacy.frames) {
-            try {
-              const blob = await dataUrlToBlob(f.imageDataUrl)
-              blobs.push(blob)
-            } catch {
-              if (cancelled) return
-              return
+      try {
+        let draft = await getDraft()
+        if (!draft?.frames?.length) {
+          const legacy = getLegacyDraft()
+          if (legacy?.frames?.length) {
+            const blobs: Blob[] = []
+            for (const f of legacy.frames) {
+              try {
+                const blob = await dataUrlToBlob(f.imageDataUrl)
+                blobs.push(blob)
+              } catch {
+                // Skip corrupt legacy draft and continue loading.
+                break
+              }
+            }
+            if (blobs.length === legacy.frames.length) {
+              draft = {
+                version: DRAFT_VERSION,
+                frames: legacy.frames.map((f, i) => ({
+                  id: f.id,
+                  caption: f.caption,
+                  overlayPosition: f.overlayPosition,
+                  textMode: f.textMode,
+                  fontSize: f.fontSize,
+                  fontColor: f.fontColor,
+                  fontFamily: f.fontFamily,
+                  imageBlob: blobs[i],
+                })),
+              }
+              await setDraft(draft)
+              clearLegacyDraft()
             }
           }
-          draft = {
-            version: DRAFT_VERSION,
-            frames: legacy.frames.map((f, i) => ({
-              id: f.id,
-              caption: f.caption,
-              overlayPosition: f.overlayPosition,
-              textMode: f.textMode,
-              fontSize: f.fontSize,
-              fontColor: f.fontColor,
-              fontFamily: f.fontFamily,
-              imageBlob: blobs[i],
-            })),
-          }
-          await setDraft(draft)
-          clearLegacyDraft()
         }
-      }
 
-      if (cancelled) return
-
-      const useLocalDraft =
-        Boolean(draft?.frames?.length) &&
-        (!comicSlugFromUrl || draftMatchesComic(draft, comicSlugFromUrl))
-
-      if (useLocalDraft && draft?.frames?.length) {
-        hasLoadedDraft.current = true
-        hadFramesThisSession.current = true
-        setFrames(draft.frames.map(storedToFrame))
-        setComicTitle(draft.title?.trim() || 'Comic Title')
-        restoreDraftMeta({
-          publishedSlug: draft.publishedSlug ?? null,
-          publishedComicId: draft.publishedComicId ?? null,
-        })
-        setEditorHydrated({ hydrated: true })
-        return
-      }
-
-      if (comicSlugFromUrl) {
-        const result = await fetchComicForEditor(comicSlugFromUrl)
         if (cancelled) return
-        hasLoadedDraft.current = true
-        if ('error' in result) {
-          setEditorHydrated({ hydrated: true, error: result.error })
+
+        const useLocalDraft =
+          Boolean(draft?.frames?.length) &&
+          (!comicSlugFromUrl || draftMatchesComic(draft, comicSlugFromUrl))
+
+        if (useLocalDraft && draft?.frames?.length) {
+          hadFramesThisSession.current = true
+          setFrames(draft.frames.map(storedToFrame))
+          setComicTitle(draft.title?.trim() || 'Comic Title')
+          restoreDraftMeta({
+            publishedSlug: draft.publishedSlug ?? null,
+            publishedComicId: draft.publishedComicId ?? null,
+          })
+          loadedForKeyRef.current = key
+          setEditorHydrated({ hydrated: true })
           return
         }
-        hadFramesThisSession.current = true
-        loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
-        setEditorHydrated({ hydrated: true })
-        return
-      }
 
-      hasLoadedDraft.current = true
-      setEditorHydrated({ hydrated: true })
+        if (comicSlugFromUrl) {
+          const result = await fetchComicForEditor(comicSlugFromUrl)
+          if (cancelled) return
+          if ('error' in result) {
+            loadedForKeyRef.current = key
+            setEditorHydrated({ hydrated: true, error: result.error })
+            return
+          }
+          hadFramesThisSession.current = true
+          loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
+          loadedForKeyRef.current = key
+          setEditorHydrated({ hydrated: true })
+          return
+        }
+
+        loadedForKeyRef.current = key
+        setEditorHydrated({ hydrated: true })
+      } catch (err) {
+        if (cancelled) return
+        console.error('useDraftPersistence: failed to load editor state', err)
+        loadedForKeyRef.current = key
+        setEditorHydrated({
+          hydrated: true,
+          error: 'Failed to load comic. Try refreshing the page.',
+        })
+      }
     })()
 
     return () => {
@@ -217,7 +255,7 @@ export function useDraftPersistence(
   ])
 
   useEffect(() => {
-    if (!hasLoadedDraft.current) return
+    if (!loadedForKeyRef.current) return
     if (frames.length > 0) {
       hadFramesThisSession.current = true
     }

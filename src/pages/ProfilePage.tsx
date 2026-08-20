@@ -19,6 +19,7 @@ export function ProfilePage() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const loadPublishedComic = useComicStore((s) => s.loadPublishedComic)
+  const setEditorHydrated = useComicStore((s) => s.setEditorHydrated)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [comics, setComics] = useState<ProfileComic[]>([])
@@ -100,6 +101,7 @@ export function ProfilePage() {
     }
 
     loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
+    setEditorHydrated({ hydrated: true })
     setEditingId(null)
     navigate(createPagePath(result.slug))
   }
