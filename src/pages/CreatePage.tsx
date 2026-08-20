@@ -26,7 +26,7 @@ import { useAuthModal } from '../contexts/AuthModalContext'
 import { useAuth } from '../hooks/useAuth'
 import { MAX_FRAMES, useComicStore, type ComicFrame } from '../stores/useComicStore'
 import { createPagePath, editPagePath } from '../lib/comicEditor'
-import { parseWebsiteLinkInput, websiteHostname } from '../lib/websiteLink'
+import { parseWebsiteLinkInput, websiteHostname, iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
 
 const CREATE_AUTH_MESSAGE = 'Sign in to create your comic'
 
@@ -111,7 +111,7 @@ function LinkInputModal({
       >
         <h3 className="text-lg font-semibold mb-1">Add Website Link</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Paste a URL, or an Instagram embed code for a single post.
+          Paste a URL, or an Instagram embed code for a post or profile.
         </p>
         <form onSubmit={handleSubmit}>
           <textarea
@@ -679,7 +679,33 @@ function FeedCaptionEditor({
         className="flex-1 flex items-center justify-center p-4"
         onClick={(e) => e.stopPropagation()}
       >
-        {frame.imageUrl ? (
+        {frame.websiteUrl ? (
+          <div className="relative w-full max-w-md h-[70vh] flex flex-col">
+            <iframe
+              src={iframeSrcForWebsiteUrl(frame.websiteUrl)}
+              title="Website preview"
+              className={
+                isInstagramEmbed(frame.websiteUrl)
+                  ? 'w-full flex-1 min-h-0 max-w-[540px] mx-auto rounded-lg bg-white'
+                  : 'w-full flex-1 min-h-0 rounded-lg bg-white'
+              }
+              sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+              allow="encrypted-media; clipboard-write; picture-in-picture"
+            />
+            <textarea
+              ref={inputRef}
+              value={frame.caption}
+              onChange={(e) => onCaptionChange(frame.id, e.target.value)}
+              placeholder="Add a caption..."
+              rows={2}
+              className="mt-3 w-full bg-black text-white border-0 outline-none focus:outline-none focus:ring-0 placeholder-white/50 resize-none text-center px-2.5 py-1.5 rounded"
+              style={{
+                ...captionFontStyle,
+                fontSize: `${frame.fontSize}px`,
+              }}
+            />
+          </div>
+        ) : frame.imageUrl ? (
           <div className="relative w-full max-w-md">
             <img
               src={frame.imageUrl}
@@ -722,14 +748,21 @@ function FeedView({
   currentIndex,
   onCurrentIndexChange,
   onFrameTap,
+  onSwipePastEnd,
 }: {
   frames: ComicFrame[]
   currentIndex: number
   onCurrentIndexChange: (index: number) => void
   onFrameTap: (frame: ComicFrame) => void
+  onSwipePastEnd?: () => boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const frameRefs = useRef<(HTMLDivElement | null)[]>([])
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
+  const startedAtEndRef = useRef(false)
+  const pendingScrollToEndRef = useRef(false)
+  const swipeCooldownRef = useRef(false)
 
   useEffect(() => {
     const container = containerRef.current
@@ -766,6 +799,64 @@ function FeedView({
     }
   }
 
+  // After swipe-to-add, scroll to the newly appended frame
+  useEffect(() => {
+    if (!pendingScrollToEndRef.current || frames.length === 0) return
+    pendingScrollToEndRef.current = false
+    const newIndex = frames.length - 1
+    requestAnimationFrame(() => scrollToIndex(newIndex))
+  }, [frames.length])
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container || !onSwipePastEnd) return
+
+    const isAtEnd = () => {
+      const maxScroll = container.scrollWidth - container.clientWidth
+      return currentIndex >= frames.length - 1 || container.scrollLeft >= maxScroll - 4
+    }
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX
+      touchStartY.current = e.touches[0].clientY
+      startedAtEndRef.current = isAtEnd()
+    }
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (touchStartX.current == null || touchStartY.current == null) return
+      if (!startedAtEndRef.current || swipeCooldownRef.current) {
+        touchStartX.current = null
+        touchStartY.current = null
+        return
+      }
+
+      const dx = e.changedTouches[0].clientX - touchStartX.current
+      const dy = e.changedTouches[0].clientY - touchStartY.current
+      touchStartX.current = null
+      touchStartY.current = null
+
+      // Advance past the last frame: finger swipes toward the next / right end
+      const isHorizontal = Math.abs(dx) > Math.abs(dy)
+      if (!isHorizontal || dx > -56) return
+
+      swipeCooldownRef.current = true
+      const created = onSwipePastEnd()
+      if (created) {
+        pendingScrollToEndRef.current = true
+      }
+      window.setTimeout(() => {
+        swipeCooldownRef.current = false
+      }, 500)
+    }
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true })
+    container.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart)
+      container.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [currentIndex, frames.length, onSwipePastEnd])
+
   return (
     <div className="relative h-[calc(100vh-180px)] min-h-[400px]">
       {/* Main photo area - horizontal scroll */}
@@ -782,7 +873,19 @@ function FeedView({
               className="w-full h-full snap-center shrink-0 relative cursor-pointer flex items-center justify-center"
               onClick={() => onFrameTap(frame)}
             >
-              {frame.imageUrl ? (
+              {frame.websiteUrl ? (
+                <iframe
+                  src={iframeSrcForWebsiteUrl(frame.websiteUrl)}
+                  title="Website preview"
+                  className={
+                    isInstagramEmbed(frame.websiteUrl)
+                      ? 'w-full max-w-[540px] h-full pointer-events-none'
+                      : 'w-full h-full pointer-events-none'
+                  }
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                  allow="encrypted-media; clipboard-write; picture-in-picture"
+                />
+              ) : frame.imageUrl ? (
                 <img
                   src={frame.imageUrl}
                   alt=""
@@ -797,12 +900,14 @@ function FeedView({
               )}
               {frame.caption && (
                 <div
-                  className="absolute bottom-8 left-4 right-4 leading-snug text-center"
+                  className={`absolute bottom-8 left-4 right-4 leading-snug text-center ${
+                    frame.websiteUrl ? 'bg-black text-white px-2.5 py-1.5' : ''
+                  }`}
                   style={{
                     ...captionFontStyle,
                     fontSize: `${frame.fontSize}px`,
-                    color: frame.fontColor,
-                    textShadow: COMIC_TEXT_STROKE_SHADOW,
+                    color: frame.websiteUrl ? '#ffffff' : frame.fontColor,
+                    textShadow: frame.websiteUrl ? undefined : COMIC_TEXT_STROKE_SHADOW,
                   }}
                 >
                   {frame.caption}
@@ -827,7 +932,16 @@ function FeedView({
             }`}
             aria-label={`Go to frame ${index + 1}`}
           >
-            {frame.imageUrl ? (
+            {frame.websiteUrl ? (
+              <div className="w-full h-full bg-white flex items-center justify-center">
+                <img
+                  src={`https://www.google.com/s2/favicons?domain=${websiteHostname(frame.websiteUrl) ?? 'instagram.com'}&sz=64`}
+                  alt=""
+                  className="w-6 h-6 object-contain"
+                  draggable={false}
+                />
+              </div>
+            ) : frame.imageUrl ? (
               <img
                 src={frame.imageUrl}
                 alt=""
@@ -844,8 +958,6 @@ function FeedView({
     </div>
   )
 }
-//test
-
 function CreatePageSkeleton() {
   return (
     <div className="w-full max-w-xl mx-auto animate-pulse">
@@ -867,11 +979,17 @@ export function CreatePage() {
   const [hydrated, setHydrated] = useState(false)
   const [limitMessageShown, setLimitMessageShown] = useState(false)
   const initialView = searchParams.get('view')
-  const [view, setView] = useState<CreateView>(
-    initialView === 'list' || initialView === 'feed' || initialView === 'grid'
-      ? initialView
-      : 'grid'
-  )
+  const [view, setView] = useState<CreateView>(() => {
+    const isMobile =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 639px)').matches
+    if (initialView === 'list' || initialView === 'feed' || initialView === 'grid') {
+      // Mobile modes are list + feed; map grid → list
+      if (initialView === 'grid' && isMobile) return 'list'
+      return initialView
+    }
+    return isMobile ? 'list' : 'grid'
+  })
   const [processingFiles, setProcessingFiles] = useState(false)
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null)
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null)
@@ -889,6 +1007,19 @@ export function CreatePage() {
   useEffect(() => {
     setHydrated(true)
   }, [])
+
+  // Mobile only supports list + feed; keep grid for desktop
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const syncMobileView = () => {
+      if (mq.matches && view === 'grid') {
+        setView('list')
+      }
+    }
+    syncMobileView()
+    mq.addEventListener('change', syncMobileView)
+    return () => mq.removeEventListener('change', syncMobileView)
+  }, [view])
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -918,6 +1049,16 @@ export function CreatePage() {
   }, [hydrated, editorHydrated, searchParams, setSearchParams, addEmptyFrame])
 
   const canAddMore = frames.length < MAX_FRAMES
+
+  const handleFeedSwipePastEnd = useCallback(() => {
+    if (frames.length >= MAX_FRAMES) return false
+    const id = addEmptyFrame()
+    if (!id) return false
+    const newIndex = useComicStore.getState().frames.length - 1
+    setFeedCurrentIndex(newIndex)
+    setFocusedFrameId(id)
+    return true
+  }, [frames.length, addEmptyFrame])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1318,22 +1459,32 @@ export function CreatePage() {
                 }}
                 onFrameTap={(frame) => {
                   setFocusedFrameId(frame.id)
-                  if (frame.imageUrl) {
+                  if (frame.imageUrl || frame.websiteUrl) {
                     setEditingFeedFrame(frame)
                   } else {
                     handleUploadForFrame(frame.id)
                   }
                 }}
+                onSwipePastEnd={handleFeedSwipePastEnd}
               />
               {/* Floating bottom buttons for feed view */}
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setView('grid')}
+                  onClick={() => setView('list')}
                   className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  grid
+                  list
                 </button>
+                {canAddMore && (
+                  <button
+                    type="button"
+                    onClick={openFileInput}
+                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    + add
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -1413,6 +1564,15 @@ export function CreatePage() {
                 >
                   feed
                 </button>
+                {canAddMore && (
+                  <button
+                    type="button"
+                    onClick={openFileInput}
+                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    + add
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -1473,11 +1633,20 @@ export function CreatePage() {
               <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setView('grid')}
+                  onClick={() => setView('feed')}
                   className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  grid
+                  feed
                 </button>
+                {canAddMore && (
+                  <button
+                    type="button"
+                    onClick={openFileInput}
+                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    + add
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -1501,7 +1670,7 @@ export function CreatePage() {
               <button
                 type="button"
                 onClick={openFileInput}
-                className="btn-primary"
+                className="btn-primary hidden sm:inline-flex"
               >
                 + add more
               </button>
