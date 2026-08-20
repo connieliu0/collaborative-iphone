@@ -150,7 +150,6 @@ export async function publishComic(
     frames.map(async (frame, i) => {
       // Frames without images (website embeds or text-only) don't need upload
       const hasImage = frame.imageFile || frame.imageUrl
-      const hasContent = hasImage || frame.websiteUrl || frame.caption.trim()
       
       if (!hasImage) {
         return { index: i, file: null, noImageNeeded: true }
