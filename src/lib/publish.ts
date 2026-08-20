@@ -145,14 +145,18 @@ export async function publishComic(
 
   const comicId = (comicRow as { id: string }).id
 
-  // Prepare all files first (parallel)
+  // Prepare all files first (parallel) - skip frames with websiteUrl but no image
   const fileResults = await Promise.all(
     frames.map(async (frame, i) => {
+      // Website-only frames (e.g. Instagram embeds) don't need an image upload
+      if (frame.websiteUrl && !frame.imageUrl && !frame.imageFile) {
+        return { index: i, file: null, isWebsiteOnly: true }
+      }
       const file = await getFrameUploadFile(frame)
-      return { index: i, file }
+      return { index: i, file, isWebsiteOnly: false }
     })
   )
-  const missingFile = fileResults.find((r) => !r.file)
+  const missingFile = fileResults.find((r) => !r.file && !r.isWebsiteOnly)
   if (missingFile) {
     return { error: `Frame ${missingFile.index + 1} has no image file` }
   }
@@ -161,8 +165,17 @@ export async function publishComic(
   const BATCH_SIZE = 5
   const uploadedUrls: string[] = new Array(frames.length)
 
-  for (let batchStart = 0; batchStart < frames.length; batchStart += BATCH_SIZE) {
-    const batch = fileResults.slice(batchStart, batchStart + BATCH_SIZE)
+  // First, fill in empty strings for website-only frames
+  for (const { index, isWebsiteOnly } of fileResults) {
+    if (isWebsiteOnly) {
+      uploadedUrls[index] = ''
+    }
+  }
+
+  // Then upload frames with images in batches
+  const toUpload = fileResults.filter((r) => r.file)
+  for (let batchStart = 0; batchStart < toUpload.length; batchStart += BATCH_SIZE) {
+    const batch = toUpload.slice(batchStart, batchStart + BATCH_SIZE)
     const results = await Promise.all(
       batch.map(async ({ index, file }) => {
         const frame = frames[index]
@@ -202,6 +215,7 @@ export async function publishComic(
     overlay_y: frame.overlayPosition.y,
     font_size: frame.fontSize,
     font_color: frame.fontColor,
+    website_url: frame.websiteUrl ?? null,
   }))
 
   const { error: framesError } = await supabase.from('frames').insert(framesRows)
@@ -222,6 +236,7 @@ type FrameInsertRow = {
   overlay_y: number
   font_size: number
   font_color: string
+  website_url: string | null
 }
 
 /** Update existing frames in order; insert extras; delete leftovers. Never reuses client IDs. */
@@ -298,6 +313,10 @@ export async function updateComic(
   // Prepare files and identify which need uploading (parallel)
   const preparedFrames = await Promise.all(
     frames.map(async (frame, i) => {
+      // Website-only frames (e.g. Instagram embeds) don't need an image upload
+      if (frame.websiteUrl && !frame.imageUrl && !frame.imageFile) {
+        return { index: i, isWebsiteOnly: true }
+      }
       if (!frame.imageFile && isRemoteImageUrl(frame.imageUrl)) {
         return { index: i, existingUrl: frame.imageUrl }
       }
@@ -306,7 +325,7 @@ export async function updateComic(
     })
   )
 
-  const missingFile = preparedFrames.find((p) => !p.existingUrl && !p.file)
+  const missingFile = preparedFrames.find((p) => !p.existingUrl && !p.file && !('isWebsiteOnly' in p && p.isWebsiteOnly))
   if (missingFile) {
     return { error: `Frame ${missingFile.index + 1} has no image file` }
   }
@@ -315,15 +334,17 @@ export async function updateComic(
   const BATCH_SIZE = 5
   const uploadedUrls: string[] = new Array(frames.length)
 
-  // First, fill in existing URLs
+  // First, fill in existing URLs and empty strings for website-only frames
   for (const p of preparedFrames) {
-    if (p.existingUrl) {
+    if ('existingUrl' in p && p.existingUrl) {
       uploadedUrls[p.index] = p.existingUrl
+    } else if ('isWebsiteOnly' in p && p.isWebsiteOnly) {
+      uploadedUrls[p.index] = ''
     }
   }
 
   // Then upload new files in batches
-  const toUpload = preparedFrames.filter((p) => p.file)
+  const toUpload = preparedFrames.filter((p) => 'file' in p && p.file)
   for (let batchStart = 0; batchStart < toUpload.length; batchStart += BATCH_SIZE) {
     const batch = toUpload.slice(batchStart, batchStart + BATCH_SIZE)
     const results = await Promise.all(
@@ -358,6 +379,7 @@ export async function updateComic(
     overlay_y: frame.overlayPosition.y,
     font_size: frame.fontSize,
     font_color: frame.fontColor,
+    website_url: frame.websiteUrl ?? null,
   }))
 
   const replaceResult = await replaceComicFrames(comicId, framesRows)
@@ -441,6 +463,7 @@ export interface AddFramePayload {
   overlay_y: number
   font_size: number
   font_color: string
+  website_url?: string
 }
 
 /** Insert one frame and advance turn or complete comic. */
@@ -483,6 +506,7 @@ export async function addFrameToComic(
     overlay_y: payload.overlay_y,
     font_size: payload.font_size,
     font_color: payload.font_color,
+    website_url: payload.website_url ?? null,
   })
 
   if (insertError) return { error: insertError.message }

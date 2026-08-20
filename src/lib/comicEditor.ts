@@ -43,7 +43,7 @@ export async function fetchComicForEditor(
 
   const { data: frames, error: framesError } = await supabase
     .from('frames')
-    .select('id, image_url, caption, overlay_x, overlay_y, font_size, font_color')
+    .select('id, image_url, website_url, caption, overlay_x, overlay_y, font_size, font_color')
     .eq('comic_id', comic.id)
     .order('order', { ascending: true })
 

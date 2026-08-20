@@ -66,6 +66,7 @@ export function createEmptyFrame(fontFamily: FontFamilyId = 'Arial'): ComicFrame
 export interface LoadedFrame {
   id: string
   image_url: string
+  website_url?: string | null
   caption: string
   overlay_x: number
   overlay_y: number
@@ -182,22 +183,32 @@ export const useComicStore = create<ComicState>((set) => ({
 
   updateFrameUrls: (uploadedUrls) => {
     set((state) => {
-      const framesWithImageUrl = state.frames.filter((f) => f.imageUrl)
-      if (framesWithImageUrl.length !== uploadedUrls.length) {
-        return state
+      // Count frames that have content (image or website URL)
+      const framesWithContent = state.frames.filter((f) => f.imageUrl || f.websiteUrl)
+      if (framesWithContent.length !== uploadedUrls.length) {
+        console.warn('updateFrameUrls: frame count mismatch', {
+          framesWithContent: framesWithContent.length,
+          uploadedUrls: uploadedUrls.length,
+        })
+        // Still try to update what we can rather than bailing entirely
       }
       let urlIndex = 0
       const updatedFrames = state.frames.map((frame) => {
-        if (!frame.imageUrl) return frame
+        // Skip frames without content
+        if (!frame.imageUrl && !frame.websiteUrl) return frame
+        // Safety check: don't go past uploadedUrls array
+        if (urlIndex >= uploadedUrls.length) return frame
         const oldUrl = frame.imageUrl
         const newUrl = uploadedUrls[urlIndex++]
-        if (oldUrl.startsWith('blob:')) {
+        if (oldUrl && oldUrl.startsWith('blob:')) {
           URL.revokeObjectURL(oldUrl)
         }
+        // For website-only frames, newUrl is empty string - keep imageUrl empty
+        // For frames with images, update to the remote URL
         return {
           ...frame,
           imageFile: null,
-          imageUrl: newUrl,
+          imageUrl: newUrl || '',
         }
       })
       return { frames: updatedFrames }
@@ -232,7 +243,7 @@ export const useComicStore = create<ComicState>((set) => ({
           id: f.id,
           imageFile: null,
           imageUrl: f.image_url,
-          websiteUrl: undefined,
+          websiteUrl: f.website_url ?? undefined,
           caption: f.caption,
           overlayPosition: { x: f.overlay_x, y: normalizeLegacyOverlayY(f.overlay_y) },
           textMode: 'caption' as TextMode,

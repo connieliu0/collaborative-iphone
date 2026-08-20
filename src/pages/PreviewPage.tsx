@@ -194,7 +194,7 @@ export function PreviewPage() {
     setShowTitleModal(false)
     setPublishError(null)
     setPublishing(true)
-    const publishFrames = frames.filter((frame) => frame.imageUrl)
+    const publishFrames = frames.filter((frame) => frame.imageUrl || frame.websiteUrl)
     const finalTitle = titleInput.trim() || 'Comic Title'
     const result = publishedComicId
       ? await updateComic(publishedComicId, user!.id, publishFrames, finalTitle)

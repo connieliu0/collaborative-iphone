@@ -259,7 +259,7 @@ function SortableGridItem({
           }
         }}
         tabIndex={0}
-        aria-label={frame.imageUrl ? `Edit frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
+        aria-label={frame.imageUrl || frame.websiteUrl ? `Edit frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
         {...gridAttributes}
         {...listeners}
       >
@@ -928,9 +928,11 @@ export function CreatePage() {
       const converted = await Promise.all(toProcess.map((f) => prepareImage(f)))
       if (uploadTargetId && converted[0]) {
         const file = converted[0]
+        // Clear websiteUrl when uploading image - they're mutually exclusive
         updateFrame(uploadTargetId, {
           imageFile: file,
           imageUrl: URL.createObjectURL(file),
+          websiteUrl: undefined,
         })
       } else {
         addFrames(converted)
@@ -1052,7 +1054,13 @@ export function CreatePage() {
   }
 
   const handleSaveLink = (frameId: string, url: string) => {
-    updateFrame(frameId, { websiteUrl: url })
+    const frame = frames.find((f) => f.id === frameId)
+    // Revoke old blob URL if present
+    if (frame?.imageUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(frame.imageUrl)
+    }
+    // Clear image when adding website link - they're mutually exclusive
+    updateFrame(frameId, { websiteUrl: url, imageUrl: '', imageFile: null })
   }
 
   const handleEnterOnFrame = (frame: ComicFrame) => {
