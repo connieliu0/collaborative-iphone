@@ -194,7 +194,7 @@ export function PreviewPage() {
     setShowTitleModal(false)
     setPublishError(null)
     setPublishing(true)
-    const publishFrames = frames.filter((frame) => frame.imageUrl || frame.websiteUrl)
+    const publishFrames = frames.filter((frame) => frame.imageUrl || frame.websiteUrl || frame.caption.trim())
     
     // Debug: log what we're about to publish
     console.log('handlePublish: frames to publish', publishFrames.map((f, i) => ({

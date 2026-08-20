@@ -145,18 +145,19 @@ export async function publishComic(
 
   const comicId = (comicRow as { id: string }).id
 
-  // Prepare all files first (parallel) - skip frames with websiteUrl but no image
+  // Prepare all files first (parallel) - skip frames without images
   const fileResults = await Promise.all(
     frames.map(async (frame, i) => {
-      // Website-only frames (e.g. Instagram embeds) don't need an image upload
-      if (frame.websiteUrl && !frame.imageUrl && !frame.imageFile) {
-        return { index: i, file: null, isWebsiteOnly: true }
+      // Frames without images (website embeds or text-only) don't need upload
+      const hasImage = frame.imageFile || frame.imageUrl
+      if (!hasImage) {
+        return { index: i, file: null, noImageNeeded: true }
       }
       const file = await getFrameUploadFile(frame)
-      return { index: i, file, isWebsiteOnly: false }
+      return { index: i, file, noImageNeeded: false }
     })
   )
-  const missingFile = fileResults.find((r) => !r.file && !r.isWebsiteOnly)
+  const missingFile = fileResults.find((r) => !r.file && !r.noImageNeeded)
   if (missingFile) {
     return { error: `Frame ${missingFile.index + 1} has no image file` }
   }
@@ -165,9 +166,9 @@ export async function publishComic(
   const BATCH_SIZE = 5
   const uploadedUrls: string[] = new Array(frames.length)
 
-  // First, fill in empty strings for website-only frames
-  for (const { index, isWebsiteOnly } of fileResults) {
-    if (isWebsiteOnly) {
+  // First, fill in empty strings for frames without images
+  for (const { index, noImageNeeded } of fileResults) {
+    if (noImageNeeded) {
       uploadedUrls[index] = ''
     }
   }
@@ -313,9 +314,10 @@ export async function updateComic(
   // Prepare files and identify which need uploading (parallel)
   const preparedFrames = await Promise.all(
     frames.map(async (frame, i) => {
-      // Website-only frames (e.g. Instagram embeds) don't need an image upload
-      if (frame.websiteUrl && !frame.imageUrl && !frame.imageFile) {
-        return { index: i, isWebsiteOnly: true }
+      // Frames without images (website embeds or text-only) don't need upload
+      const hasImage = frame.imageFile || frame.imageUrl
+      if (!hasImage) {
+        return { index: i, noImageNeeded: true }
       }
       if (!frame.imageFile && isRemoteImageUrl(frame.imageUrl)) {
         return { index: i, existingUrl: frame.imageUrl }
@@ -325,7 +327,7 @@ export async function updateComic(
     })
   )
 
-  const missingFile = preparedFrames.find((p) => !p.existingUrl && !p.file && !('isWebsiteOnly' in p && p.isWebsiteOnly))
+  const missingFile = preparedFrames.find((p) => !('existingUrl' in p) && !('file' in p) && !('noImageNeeded' in p))
   if (missingFile) {
     return { error: `Frame ${missingFile.index + 1} has no image file` }
   }
@@ -334,11 +336,11 @@ export async function updateComic(
   const BATCH_SIZE = 5
   const uploadedUrls: string[] = new Array(frames.length)
 
-  // First, fill in existing URLs and empty strings for website-only frames
+  // First, fill in existing URLs and empty strings for frames without images
   for (const p of preparedFrames) {
     if ('existingUrl' in p && p.existingUrl) {
       uploadedUrls[p.index] = p.existingUrl
-    } else if ('isWebsiteOnly' in p && p.isWebsiteOnly) {
+    } else if ('noImageNeeded' in p && p.noImageNeeded) {
       uploadedUrls[p.index] = ''
     }
   }

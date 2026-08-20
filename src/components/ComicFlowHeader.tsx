@@ -1,6 +1,7 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useAuthModal } from '../contexts/AuthModalContext'
+import { useComicStore } from '../stores/useComicStore'
 
 export const PREVIEW_RETURN_PATH_KEY = 'previewReturnPath'
 
@@ -36,7 +37,15 @@ export function ComicFlowHeader({
   const { user } = useAuth()
   const { openAuthModal } = useAuthModal()
   const location = useLocation()
+  const navigate = useNavigate()
+  const clearComic = useComicStore((s) => s.clearComic)
+  const hasFrames = useComicStore((s) => s.frames.length > 0)
   const returnTo = previewReturnTo ?? `${location.pathname}${location.search}`
+
+  const handleNewComic = () => {
+    clearComic()
+    navigate('/create')
+  }
 
   return (
     <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2 bg-white">
@@ -55,6 +64,15 @@ export function ComicFlowHeader({
 
         <div className="flex flex-nowrap items-center justify-end gap-x-2 sm:gap-x-3 ml-auto shrink-0 text-sm text-gray-900">
           {leadingActions}
+          {variant === 'create' && hasFrames && (
+            <button
+              type="button"
+              onClick={handleNewComic}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors shrink-0"
+            >
+              New
+            </button>
+          )}
           {!hideActions && (
             <Link
               to="/preview"

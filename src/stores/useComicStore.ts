@@ -183,8 +183,8 @@ export const useComicStore = create<ComicState>((set) => ({
 
   updateFrameUrls: (uploadedUrls) => {
     set((state) => {
-      // Count frames that have content (image or website URL)
-      const framesWithContent = state.frames.filter((f) => f.imageUrl || f.websiteUrl)
+      // Count frames that have content (image, website URL, or caption)
+      const framesWithContent = state.frames.filter((f) => f.imageUrl || f.websiteUrl || f.caption.trim())
       if (framesWithContent.length !== uploadedUrls.length) {
         console.warn('updateFrameUrls: frame count mismatch', {
           framesWithContent: framesWithContent.length,
@@ -194,8 +194,8 @@ export const useComicStore = create<ComicState>((set) => ({
       }
       let urlIndex = 0
       const updatedFrames = state.frames.map((frame) => {
-        // Skip frames without content
-        if (!frame.imageUrl && !frame.websiteUrl) return frame
+        // Skip empty frames (no image, no website URL, no caption)
+        if (!frame.imageUrl && !frame.websiteUrl && !frame.caption.trim()) return frame
         // Safety check: don't go past uploadedUrls array
         if (urlIndex >= uploadedUrls.length) return frame
         const oldUrl = frame.imageUrl
@@ -203,7 +203,7 @@ export const useComicStore = create<ComicState>((set) => ({
         if (oldUrl && oldUrl.startsWith('blob:')) {
           URL.revokeObjectURL(oldUrl)
         }
-        // For website-only frames, newUrl is empty string - keep imageUrl empty
+        // For frames without images (website-only or text-only), newUrl is empty string
         // For frames with images, update to the remote URL
         return {
           ...frame,
