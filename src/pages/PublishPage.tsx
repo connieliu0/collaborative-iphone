@@ -143,7 +143,7 @@ export function PublishPage() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-[50vh] text-center px-4 pb-8">
+    <div className="flex flex-col items-center min-h-[50vh] text-center px-3 sm:px-4 pb-8">
       <h1 className="text-xl font-semibold text-gray-900 mb-2">
         Your comic is live!
       </h1>
@@ -151,7 +151,7 @@ export function PublishPage() {
         Share this link with anyone to view your comic.
       </p>
 
-      <div className="w-full max-w-md flex flex-col gap-4">
+      <div className="w-full max-w-xl sm:max-w-md flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <label htmlFor="publish-share-url" className="sr-only">
             Shareable URL

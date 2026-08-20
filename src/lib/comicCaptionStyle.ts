@@ -9,6 +9,9 @@ const LEGACY_DEFAULT_OVERLAY_Y = 90
 /** Percentage points to shift bottom-anchored captions upward. */
 export const CAPTION_OVERLAY_Y_NUDGE = 5
 
+/** Smaller captions on narrow viewports in preview / live. */
+export const MOBILE_CAPTION_FONT_SCALE = 0.7
+
 export const COMIC_CAPTION_FONT_FAMILY = 'Arial, Helvetica, sans-serif'
 
 /** Mimics an outside stroke outline (CSS text-stroke can't be outside-only). */
@@ -29,6 +32,12 @@ export function normalizeLegacyComicCaptionStyle(
     return { fontSize: DEFAULT_COMIC_FONT_SIZE, fontColor: DEFAULT_COMIC_FONT_COLOR }
   }
   return { fontSize, fontColor }
+}
+
+/** Scale caption size down a bit on mobile for preview / live readability. */
+export function resolveDisplayCaptionFontSize(fontSize: number, isMobile: boolean): number {
+  if (!isMobile) return fontSize
+  return Math.max(12, Math.round(fontSize * MOBILE_CAPTION_FONT_SCALE))
 }
 
 /** Shift captions that sit near the bottom upward without moving custom mid-frame positions. */

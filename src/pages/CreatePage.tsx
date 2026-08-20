@@ -15,6 +15,7 @@ import {
   arrayMove,
   SortableContext,
   useSortable,
+  horizontalListSortingStrategy,
   rectSortingStrategy,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
@@ -154,6 +155,24 @@ function TrashIcon({ className }: { className?: string }) {
   )
 }
 
+function WriteIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  )
+}
+
 const mobileBarButtonClass =
   'flex flex-1 items-center justify-center self-stretch text-foreground hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset'
 
@@ -161,14 +180,14 @@ function MobileCreateBar({
   viewToggle,
   canAddMore,
   onAdd,
-  onUpload,
+  action,
   canRemove,
   onRemove,
 }: {
   viewToggle: { label: string; icon: 'list' | 'feed'; onClick: () => void }
   canAddMore: boolean
   onAdd: () => void
-  onUpload: () => void
+  action: { icon: 'upload' | 'write'; label: string; onClick: () => void }
   canRemove: boolean
   onRemove: () => void
 }) {
@@ -202,11 +221,15 @@ function MobileCreateBar({
         )}
         <button
           type="button"
-          onClick={onUpload}
+          onClick={action.onClick}
           className={mobileBarButtonClass}
-          aria-label="Upload"
+          aria-label={action.label}
         >
-          <UploadIcon className="w-5 h-5" />
+          {action.icon === 'write' ? (
+            <WriteIcon className="w-5 h-5" />
+          ) : (
+            <UploadIcon className="w-5 h-5" />
+          )}
         </button>
         {canRemove && (
           <button
@@ -979,13 +1002,91 @@ function FeedCaptionEditor({
               />
             </div>
           </div>
-        ) : (
-          <div className="w-full max-w-sm aspect-[3/4] bg-gray-800 rounded-lg flex items-center justify-center">
-            <span className="text-gray-500">No photo</span>
-          </div>
-        )}
+        ) : null}
       </div>
     </div>
+  )
+}
+
+function SortableFeedThumb({
+  frame,
+  index,
+  isCurrent,
+  onSelect,
+  canDrag,
+}: {
+  frame: ComicFrame
+  index: number
+  isCurrent: boolean
+  onSelect: () => void
+  canDrag: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: frame.id, disabled: !canDrag })
+  const { tabIndex: _tabIndex, ...thumbAttributes } = attributes
+  const suppressClickRef = useRef(false)
+
+  useEffect(() => {
+    if (isDragging) suppressClickRef.current = true
+  }, [isDragging])
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    touchAction: canDrag ? 'none' : undefined,
+  }
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      style={style}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          suppressClickRef.current = false
+          return
+        }
+        onSelect()
+      }}
+      className={`h-full aspect-[3/4] rounded overflow-hidden transition-all shrink-0 ${
+        isCurrent ? 'ring-2 ring-gray-900 ring-offset-1' : 'opacity-50 hover:opacity-100'
+      } ${isDragging ? 'opacity-90 z-10 scale-105' : ''} ${canDrag ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      aria-label={
+        canDrag
+          ? `Hold to reorder, or tap to go to frame ${index + 1}`
+          : `Go to frame ${index + 1}`
+      }
+      {...thumbAttributes}
+      {...(canDrag ? listeners : {})}
+    >
+      {frame.websiteUrl ? (
+        <div className="w-full h-full bg-white flex items-center justify-center pointer-events-none">
+          <img
+            src={`https://www.google.com/s2/favicons?domain=${websiteHostname(frame.websiteUrl) ?? 'instagram.com'}&sz=64`}
+            alt=""
+            className="w-6 h-6 object-contain"
+            draggable={false}
+          />
+        </div>
+      ) : frame.imageUrl ? (
+        <img
+          src={frame.imageUrl}
+          alt=""
+          className="w-full h-full object-cover pointer-events-none"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
+      ) : (
+        <div className="w-full h-full bg-[#DDDDDD] pointer-events-none" />
+      )}
+    </button>
   )
 }
 
@@ -995,20 +1096,53 @@ function FeedView({
   onCurrentIndexChange,
   onFrameTap,
   onSwipePastEnd,
+  onReorder,
+  readOnly = false,
+  editingCaptionFrameId = null,
+  onCaptionChange,
+  onCaptionEditEnd,
+  pinFilmstripAboveMobileBar = false,
 }: {
   frames: ComicFrame[]
   currentIndex: number
   onCurrentIndexChange: (index: number) => void
   onFrameTap: (frame: ComicFrame) => void
   onSwipePastEnd?: () => boolean
+  onReorder?: (activeId: string, overId: string) => void
+  readOnly?: boolean
+  editingCaptionFrameId?: string | null
+  onCaptionChange?: (id: string, caption: string) => void
+  onCaptionEditEnd?: () => void
+  /** On mobile, dock the filmstrip just above the fixed icon bar. */
+  pinFilmstripAboveMobileBar?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const frameRefs = useRef<(HTMLDivElement | null)[]>([])
+  const captionInputRef = useRef<HTMLTextAreaElement>(null)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const startedAtEndRef = useRef(false)
   const pendingScrollToEndRef = useRef(false)
   const swipeCooldownRef = useRef(false)
+  const canDrag = !readOnly && Boolean(onReorder) && frames.length > 1
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 250, tolerance: 8 },
+    })
+  )
+
+  const frameIds = useMemo(() => frames.map((f) => f.id), [frames])
+
+  useLayoutEffect(() => {
+    if (!editingCaptionFrameId) return
+    const input = captionInputRef.current
+    if (!input) return
+    input.focus()
+    const len = input.value.length
+    input.setSelectionRange(len, len)
+  }, [editingCaptionFrameId])
 
   useEffect(() => {
     const container = containerRef.current
@@ -1103,103 +1237,142 @@ function FeedView({
     }
   }, [currentIndex, frames.length, onSwipePastEnd])
 
+  const handleFilmstripDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id || !onReorder) return
+    onReorder(String(active.id), String(over.id))
+  }
+
   return (
-    <div className="relative h-[calc(100vh-180px)] min-h-[400px]">
+    <div
+      className={
+        pinFilmstripAboveMobileBar
+          ? 'relative h-[calc(100vh-8rem-env(safe-area-inset-bottom,0px))] min-h-[320px] sm:h-[calc(100vh-180px)] sm:min-h-[400px]'
+          : 'relative h-[calc(100vh-180px)] min-h-[400px]'
+      }
+    >
       {/* Main photo area - horizontal scroll */}
       <div
         ref={containerRef}
-        className="absolute inset-0 bottom-20 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide"
+        className={
+          pinFilmstripAboveMobileBar
+            ? 'absolute inset-0 bottom-16 sm:bottom-20 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide'
+            : 'absolute inset-0 bottom-20 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide'
+        }
         style={{ scrollSnapType: 'x mandatory' }}
       >
         <div className="flex h-full">
-          {frames.map((frame, index) => (
-            <div
-              key={frame.id}
-              ref={(el) => { frameRefs.current[index] = el }}
-              className="w-full h-full snap-center shrink-0 relative cursor-pointer flex items-center justify-center"
-              onClick={() => onFrameTap(frame)}
-            >
-              {frame.websiteUrl ? (
-                <iframe
-                  src={iframeSrcForWebsiteUrl(frame.websiteUrl)}
-                  title="Website preview"
-                  className={
-                    isInstagramEmbed(frame.websiteUrl)
-                      ? 'w-full max-w-[540px] h-full pointer-events-none'
-                      : 'w-full h-full pointer-events-none'
-                  }
-                  sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                  allow="encrypted-media; clipboard-write; picture-in-picture"
-                />
-              ) : frame.imageUrl ? (
-                <img
-                  src={frame.imageUrl}
-                  alt=""
-                  className="max-w-full max-h-full object-contain"
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                <div className="w-full h-full bg-[#DDDDDD] flex items-center justify-center">
-                  <span className="text-gray-500">+ add photo</span>
-                </div>
-              )}
-              {frame.caption && (
-                <div
-                  className={`absolute bottom-8 left-4 right-4 leading-snug text-center ${
-                    frame.websiteUrl ? 'bg-black text-white px-2.5 py-1.5' : ''
-                  }`}
-                  style={{
-                    ...captionFontStyle,
-                    fontSize: `${frame.fontSize}px`,
-                    color: frame.websiteUrl ? '#ffffff' : frame.fontColor,
-                    textShadow: frame.websiteUrl ? undefined : COMIC_TEXT_STROKE_SHADOW,
-                  }}
-                >
-                  {frame.caption}
-                </div>
-              )}
-            </div>
-          ))}
+          {frames.map((frame, index) => {
+            const isEditingCaption = editingCaptionFrameId === frame.id
+            return (
+              <div
+                key={frame.id}
+                ref={(el) => { frameRefs.current[index] = el }}
+                className="w-full h-full snap-center shrink-0 relative cursor-pointer flex items-center justify-center"
+                onClick={() => {
+                  if (isEditingCaption) return
+                  onFrameTap(frame)
+                }}
+              >
+                {frame.websiteUrl ? (
+                  <iframe
+                    src={iframeSrcForWebsiteUrl(frame.websiteUrl)}
+                    title="Website preview"
+                    className={
+                      isInstagramEmbed(frame.websiteUrl)
+                        ? 'w-full max-w-[540px] h-full pointer-events-none'
+                        : 'w-full h-full pointer-events-none'
+                    }
+                    sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                    allow="encrypted-media; clipboard-write; picture-in-picture"
+                  />
+                ) : frame.imageUrl ? (
+                  <img
+                    src={frame.imageUrl}
+                    alt=""
+                    className="max-w-full max-h-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[#DDDDDD] flex items-center justify-center">
+                    {!isEditingCaption && (
+                      <span className="text-gray-500">+ add photo</span>
+                    )}
+                  </div>
+                )}
+                {isEditingCaption ? (
+                  <div
+                    className="absolute inset-x-4 bottom-8 flex items-center justify-center z-10"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <textarea
+                      ref={captionInputRef}
+                      value={frame.caption}
+                      onChange={(e) => onCaptionChange?.(frame.id, e.target.value)}
+                      onBlur={() => onCaptionEditEnd?.()}
+                      placeholder="Add a caption..."
+                      rows={2}
+                      className="w-full bg-transparent border-0 outline-none focus:outline-none focus:ring-0 placeholder-black/40 resize-none text-center"
+                      style={{
+                        ...captionFontStyle,
+                        fontSize: `${frame.fontSize}px`,
+                        color: frame.fontColor,
+                        textShadow: COMIC_TEXT_STROKE_SHADOW,
+                      }}
+                    />
+                  </div>
+                ) : (
+                  frame.caption && (
+                    <div
+                      className={`absolute bottom-8 left-4 right-4 leading-snug text-center ${
+                        frame.websiteUrl ? 'bg-black text-white px-2.5 py-1.5' : ''
+                      }`}
+                      style={{
+                        ...captionFontStyle,
+                        fontSize: `${frame.fontSize}px`,
+                        color: frame.websiteUrl ? '#ffffff' : frame.fontColor,
+                        textShadow: frame.websiteUrl ? undefined : COMIC_TEXT_STROKE_SHADOW,
+                      }}
+                    >
+                      {frame.caption}
+                    </div>
+                  )
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
-      {/* Bottom filmstrip - fixed at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-16 flex gap-1.5 px-2 py-2 overflow-x-auto scrollbar-hide bg-white/80 backdrop-blur-sm">
-        {frames.map((frame, index) => (
-          <button
-            key={frame.id}
-            type="button"
-            onClick={() => scrollToIndex(index)}
-            className={`h-full aspect-[3/4] rounded overflow-hidden transition-all shrink-0 ${
-              index === currentIndex
-                ? 'ring-2 ring-gray-900 ring-offset-1'
-                : 'opacity-50 hover:opacity-100'
-            }`}
-            aria-label={`Go to frame ${index + 1}`}
-          >
-            {frame.websiteUrl ? (
-              <div className="w-full h-full bg-white flex items-center justify-center">
-                <img
-                  src={`https://www.google.com/s2/favicons?domain=${websiteHostname(frame.websiteUrl) ?? 'instagram.com'}&sz=64`}
-                  alt=""
-                  className="w-6 h-6 object-contain"
-                  draggable={false}
+      {/* Bottom filmstrip - hold thumbnails to reorder; on mobile sits just above the icon bar */}
+      <div
+        className={
+          pinFilmstripAboveMobileBar
+            ? 'fixed left-0 right-0 z-20 h-16 px-2 py-2 overflow-x-auto scrollbar-hide bg-surface border-t border-border bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] sm:absolute sm:bottom-0 sm:z-auto sm:border-t-0 sm:bg-white/80 sm:backdrop-blur-sm'
+            : 'absolute bottom-0 left-0 right-0 h-16 px-2 py-2 overflow-x-auto scrollbar-hide bg-white/80 backdrop-blur-sm'
+        }
+      >
+        <DndContext
+          sensors={sensors}
+          autoScroll
+          onDragEnd={handleFilmstripDragEnd}
+        >
+          <SortableContext items={frameIds} strategy={horizontalListSortingStrategy}>
+            <div className="flex h-full gap-1.5 max-w-xl mx-auto">
+              {frames.map((frame, index) => (
+                <SortableFeedThumb
+                  key={frame.id}
+                  frame={frame}
+                  index={index}
+                  isCurrent={index === currentIndex}
+                  onSelect={() => scrollToIndex(index)}
+                  canDrag={canDrag}
                 />
-              </div>
-            ) : frame.imageUrl ? (
-              <img
-                src={frame.imageUrl}
-                alt=""
-                className="w-full h-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            ) : (
-              <div className="w-full h-full bg-[#DDDDDD]" />
-            )}
-          </button>
-        ))}
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
   )
@@ -1229,11 +1402,11 @@ export function CreatePage() {
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 639px)').matches
     if (initialView === 'list' || initialView === 'feed' || initialView === 'grid') {
-      // Mobile modes are grid + feed; map list → grid
-      if (initialView === 'list' && isMobile) return 'grid'
+      // Mobile modes are list + feed; map grid → list
+      if (initialView === 'grid' && isMobile) return 'list'
       return initialView
     }
-    return 'grid'
+    return isMobile ? 'list' : 'grid'
   })
   const [processingFiles, setProcessingFiles] = useState(false)
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null)
@@ -1242,6 +1415,7 @@ export function CreatePage() {
   const [focusedFrameId, setFocusedFrameId] = useState<string | null>(null)
   const [feedCurrentIndex, setFeedCurrentIndex] = useState(0)
   const [editingFeedFrame, setEditingFeedFrame] = useState<ComicFrame | null>(null)
+  const [editingFeedCaptionId, setEditingFeedCaptionId] = useState<string | null>(null)
   const [linkModalFrameId, setLinkModalFrameId] = useState<string | null>(null)
   const focusHandledRef = useRef(false)
   const [undoSnapshot, setUndoSnapshot] = useState<ComicFrame[] | null>(null)
@@ -1253,12 +1427,12 @@ export function CreatePage() {
     setHydrated(true)
   }, [])
 
-  // Mobile only supports grid + feed; keep list for desktop
+  // Mobile only supports list + feed; keep grid for desktop
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)')
     const syncMobileView = () => {
-      if (mq.matches && view === 'list') {
-        setView('grid')
+      if (mq.matches && view === 'grid') {
+        setView('list')
       }
     }
     syncMobileView()
@@ -1607,6 +1781,23 @@ export function CreatePage() {
     reorderFrames(newOrder)
   }
 
+  const handleFeedReorder = useCallback(
+    (activeId: string, overId: string) => {
+      if (isReadOnly) return
+      const oldIndex = frames.findIndex((f) => f.id === activeId)
+      const newIndex = frames.findIndex((f) => f.id === overId)
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+      const currentId = frames[feedCurrentIndex]?.id
+      const newOrder = arrayMove(frames, oldIndex, newIndex)
+      reorderFrames(newOrder)
+      if (currentId) {
+        const nextCurrent = newOrder.findIndex((f) => f.id === currentId)
+        if (nextCurrent !== -1) setFeedCurrentIndex(nextCurrent)
+      }
+    },
+    [frames, feedCurrentIndex, reorderFrames, isReadOnly]
+  )
+
   const handleNavigateToEdit = (id: string) => {
     navigate(editPagePath(id, publishedSlug))
   }
@@ -1732,8 +1923,7 @@ export function CreatePage() {
             onClick={() => {
               const id = addEmptyFrame()
               if (id) setFocusCaptionFrameId(id)
-              const isMobile = window.matchMedia('(max-width: 639px)').matches
-              setView(isMobile ? 'grid' : 'list')
+              setView('list')
             }}
             disabled={processingFiles}
             className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
@@ -1756,6 +1946,7 @@ export function CreatePage() {
                   if (frames[index]) {
                     setFocusedFrameId(frames[index].id)
                   }
+                  setEditingFeedCaptionId(null)
                 }}
                 onFrameTap={(frame) => {
                   if (isReadOnly) return
@@ -1767,30 +1958,54 @@ export function CreatePage() {
                   }
                 }}
                 onSwipePastEnd={handleFeedSwipePastEnd}
+                onReorder={isReadOnly ? undefined : handleFeedReorder}
+                readOnly={isReadOnly}
+                editingCaptionFrameId={editingFeedCaptionId}
+                onCaptionChange={(id, caption) => updateFrame(id, { caption })}
+                onCaptionEditEnd={() => setEditingFeedCaptionId(null)}
+                pinFilmstripAboveMobileBar={!isReadOnly}
               />
               {!isReadOnly && (
                 <MobileCreateBar
                   viewToggle={{
-                    label: 'Grid view',
+                    label: 'List view',
                     icon: 'list',
-                    onClick: () => setView('grid'),
+                    onClick: () => setView('list'),
                   }}
                   canAddMore={canAddMore}
                   onAdd={handleMobileAddBlankFrame}
-                  onUpload={() => {
-                    const targetId = frames[feedCurrentIndex]?.id
-                    if (targetId) {
-                      handleUploadForFrame(targetId)
-                    } else {
-                      openFileInput()
-                    }
-                  }}
+                  action={
+                    frames[feedCurrentIndex] &&
+                    !frames[feedCurrentIndex].imageUrl &&
+                    !frames[feedCurrentIndex].websiteUrl
+                      ? {
+                          icon: 'write',
+                          label: 'Write caption',
+                          onClick: () => {
+                            const frame = frames[feedCurrentIndex]
+                            if (frame) setEditingFeedCaptionId(frame.id)
+                          },
+                        }
+                      : {
+                          icon: 'upload',
+                          label: 'Upload',
+                          onClick: () => {
+                            const targetId = frames[feedCurrentIndex]?.id
+                            if (targetId) {
+                              handleUploadForFrame(targetId)
+                            } else {
+                              openFileInput()
+                            }
+                          },
+                        }
+                  }
                   canRemove={Boolean(frames[feedCurrentIndex])}
                   onRemove={() => {
                     const id = frames[feedCurrentIndex]?.id
                     if (!id) return
                     removeFrame(id)
                     setFocusedFrameId((current) => (current === id ? null : current))
+                    setEditingFeedCaptionId((current) => (current === id ? null : current))
                   }}
                 />
               )}
@@ -1883,12 +2098,16 @@ export function CreatePage() {
                   }}
                   canAddMore={canAddMore}
                   onAdd={handleMobileAddBlankFrame}
-                  onUpload={() => {
-                    if (focusedFrameId) {
-                      handleUploadForFrame(focusedFrameId)
-                    } else {
-                      openFileInput()
-                    }
+                  action={{
+                    icon: 'upload',
+                    label: 'Upload',
+                    onClick: () => {
+                      if (focusedFrameId) {
+                        handleUploadForFrame(focusedFrameId)
+                      } else {
+                        openFileInput()
+                      }
+                    },
                   }}
                   canRemove={Boolean(focusedFrameId)}
                   onRemove={() => {
@@ -1975,12 +2194,16 @@ export function CreatePage() {
                   }}
                   canAddMore={canAddMore}
                   onAdd={handleMobileAddBlankFrame}
-                  onUpload={() => {
-                    if (focusedFrameId) {
-                      handleUploadForFrame(focusedFrameId)
-                    } else {
-                      openFileInput()
-                    }
+                  action={{
+                    icon: 'upload',
+                    label: 'Upload',
+                    onClick: () => {
+                      if (focusedFrameId) {
+                        handleUploadForFrame(focusedFrameId)
+                      } else {
+                        openFileInput()
+                      }
+                    },
                   }}
                   canRemove={Boolean(focusedFrameId)}
                   onRemove={() => {

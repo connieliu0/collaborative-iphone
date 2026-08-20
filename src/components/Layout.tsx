@@ -4,7 +4,11 @@ import { useAuth } from '../hooks/useAuth'
 import { useDraftPersistence } from '../hooks/useDraftPersistence'
 
 const isFullscreenPath = (pathname: string) =>
-  /^\/comic\/[^/]+$/.test(pathname) || /^\/session\/[^/]+\/visualizer$/.test(pathname)
+  pathname === '/preview' ||
+  /^\/comic\/[^/]+$/.test(pathname) ||
+  /^\/session\/[^/]+\/visualizer$/.test(pathname)
+
+const isWideMobilePath = (pathname: string) => pathname === '/publish'
 
 export function Layout({ children }: { children?: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth()
@@ -12,6 +16,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
   const comicSlugFromUrl = new URLSearchParams(location.search).get('comic')
   useDraftPersistence(user, authLoading, comicSlugFromUrl)
   const hideNav = isFullscreenPath(location.pathname)
+  const wideMobile = isWideMobilePath(location.pathname)
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
@@ -61,7 +66,13 @@ export function Layout({ children }: { children?: React.ReactNode }) {
           You&apos;re offline — some features unavailable
         </div>
       )}
-      <main className="flex-1 w-full min-w-0 max-w-[640px] mx-auto px-2 py-2 box-border">
+      <main
+        className={`flex-1 w-full min-w-0 mx-auto box-border ${
+          wideMobile
+            ? 'max-w-none sm:max-w-[640px] px-0 sm:px-2 py-2'
+            : 'max-w-[640px] px-2 py-2'
+        }`}
+      >
         {children ?? <Outlet />}
       </main>
     </div>

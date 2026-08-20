@@ -43,7 +43,7 @@ export function PublishSuccessModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-md bg-white border border-gray-300 p-5 mx-2 mb-2 sm:mb-0">
+      <div className="w-full max-w-xl sm:max-w-md bg-white border border-gray-300 p-5 mx-0 sm:mx-2 mb-0 sm:mb-0 rounded-t-lg sm:rounded-none">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-base font-medium text-gray-900">Your comic is live</h2>

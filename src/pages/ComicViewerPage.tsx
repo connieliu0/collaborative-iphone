@@ -46,6 +46,7 @@ import {
   DEFAULT_OVERLAY_Y,
   normalizeLegacyComicCaptionStyle,
   resolveCaptionOverlayY,
+  resolveDisplayCaptionFontSize,
 } from '../lib/comicCaptionStyle'
 import { iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
 import { isWhMontageFrame } from '../lib/whPhotos'
@@ -87,10 +88,23 @@ export function FrameContent({
 }) {
   const isPreview = variant === 'preview'
   const naturalSize = imageFit === 'natural'
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    const sync = () => setIsMobile(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
   const { fontSize: captionFontSize, fontColor: captionFontColor } = normalizeLegacyComicCaptionStyle(
     frame.font_size,
     frame.font_color
   )
+  const displayFontSize = resolveDisplayCaptionFontSize(captionFontSize, isMobile)
 
   const overlayTopPct =
     typeof frame.overlay_y === 'number'
@@ -102,9 +116,11 @@ export function FrameContent({
   return (
     <div
       className={[
-        'relative w-full flex flex-col rounded-lg overflow-hidden',
+        'relative w-full flex flex-col overflow-hidden',
         naturalSize ? '' : 'flex-1 min-h-0',
-        isPreview ? 'bg-black border border-black' : 'bg-gray-200 border border-gray-200',
+        isPreview
+          ? 'bg-black border-0 rounded-none'
+          : 'bg-gray-200 border border-gray-200 rounded-lg',
       ].join(' ')}
     >
       <div
@@ -123,10 +139,10 @@ export function FrameContent({
                 ? 'w-full h-auto block'
                 : isPreview
                   ? isIgEmbed
-                    ? 'w-full max-w-[540px] h-full block'
+                    ? 'w-full sm:max-w-[540px] h-full block'
                     : 'w-full h-full object-cover block'
                   : isIgEmbed
-                    ? 'w-full max-w-[540px] h-full block'
+                    ? 'w-full sm:max-w-[540px] h-full block'
                     : 'max-w-full max-h-full w-full h-full object-contain block'
             }
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
@@ -166,7 +182,7 @@ export function FrameContent({
               left: `${frame.overlay_x}%`,
               top: `${overlayTopPct}%`,
               transform: 'translate(-50%, -50%)',
-              fontSize: `${captionFontSize}px`,
+              fontSize: `${displayFontSize}px`,
               color: captionFontColor,
               fontWeight: 'bold',
             }}
@@ -176,6 +192,7 @@ export function FrameContent({
               style={{
                 fontFamily: CAPTION_FONT_FAMILY,
                 fontWeight: 'bold',
+                maxWidth: isPreview && isMobile ? '97vw' : undefined,
                 ...(solidCaptionBackground || frame.website_url
                   ? {
                       backgroundColor: '#000000',
@@ -197,7 +214,7 @@ export function FrameContent({
         <div
           className="w-full bg-gray-800 text-white px-3 py-2 shrink-0 text-center text-sm"
           style={{
-            fontSize: `${captionFontSize}px`,
+            fontSize: `${displayFontSize}px`,
             fontFamily: CAPTION_FONT_FAMILY,
             fontWeight: 'bold',
           }}
