@@ -382,6 +382,14 @@ export async function updateComic(
     website_url: frame.websiteUrl ?? null,
   }))
 
+  // Debug: log frames being updated
+  console.log('updateComic: frames to update', framesRows.map((r, i) => ({
+    order: r.order,
+    hasImage: Boolean(r.image_url),
+    websiteUrl: r.website_url,
+    originalWebsiteUrl: frames[i].websiteUrl,
+  })))
+
   const replaceResult = await replaceComicFrames(comicId, framesRows)
   if (replaceResult.error) {
     console.error('updateComic: failed to replace frames', { comicId, userId, error: replaceResult.error })
