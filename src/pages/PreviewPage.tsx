@@ -11,7 +11,7 @@ import { FrameContent, type FrameDisplay } from './ComicViewerPage'
 
 const SWIPE_THRESHOLD_PX = 50
 
-const PUBLISH_AUTH_MESSAGE = 'Create a free account to publish your comic'
+const PUBLISH_AUTH_MESSAGE = 'Sign in or create an account to publish and save your comic'
 
 const btnPrimary = 'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
 

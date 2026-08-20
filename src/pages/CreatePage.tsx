@@ -15,6 +15,7 @@ import {
   arrayMove,
   SortableContext,
   useSortable,
+  rectSortingStrategy,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -22,13 +23,10 @@ import {
   COMIC_CAPTION_FONT_FAMILY,
   COMIC_TEXT_STROKE_SHADOW,
 } from '../lib/comicCaptionStyle'
-import { useAuthModal } from '../contexts/AuthModalContext'
 import { useAuth } from '../hooks/useAuth'
 import { MAX_FRAMES, useComicStore, type ComicFrame } from '../stores/useComicStore'
 import { createPagePath, editPagePath } from '../lib/comicEditor'
 import { parseWebsiteLinkInput, websiteHostname, iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
-
-const CREATE_AUTH_MESSAGE = 'Sign in to create your comic'
 
 const captionFontStyle: React.CSSProperties = {
   fontFamily: COMIC_CAPTION_FONT_FAMILY,
@@ -192,9 +190,12 @@ function MobileCreateBar({
         {canAddMore && (
           <button
             type="button"
-            onClick={onAdd}
+            onPointerDown={(e) => {
+              e.preventDefault()
+              onAdd()
+            }}
             className={mobileBarButtonClass}
-            aria-label="Add frames"
+            aria-label="Add blank frame"
           >
             <PlusIcon className="w-5 h-5" />
           </button>
@@ -348,6 +349,18 @@ function SortableGridItem({
   } = useSortable({ id: frame.id })
   const { tabIndex: _gridTabIndex, ...gridAttributes } = attributes
 
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const sync = () => setIsDesktop(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -356,6 +369,11 @@ function SortableGridItem({
 
   const [isEditingCaption, setIsEditingCaption] = useState(false)
   const captionInputRef = useRef<HTMLTextAreaElement>(null)
+  const suppressClickRef = useRef(false)
+
+  useEffect(() => {
+    if (isDragging) suppressClickRef.current = true
+  }, [isDragging])
 
   useLayoutEffect(() => {
     if (!isEditingCaption) return
@@ -394,13 +412,24 @@ function SortableGridItem({
         className={`group aspect-[198/277] relative rounded-lg overflow-hidden bg-[#DDDDDD] border border-border cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
         onClick={(e) => {
           if (readOnly) return
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false
+            return
+          }
           onFocus?.(frame.id)
+          if (!isDesktop) {
+            // Mobile: tap selects (for bottom bar add/remove); empty frames open upload
+            if (!frame.imageUrl && !frame.websiteUrl) {
+              onUpload(frame.id)
+            }
+            ;(e.currentTarget as HTMLElement).focus()
+            return
+          }
           if (frame.imageUrl) {
             onNavigate(frame.id)
           } else {
             onUpload(frame.id)
           }
-          // Focus the item when clicked
           ;(e.currentTarget as HTMLElement).focus()
         }}
         onFocus={() => {
@@ -423,7 +452,7 @@ function SortableGridItem({
         tabIndex={0}
         aria-label={frame.imageUrl || frame.websiteUrl ? `Edit frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
         {...gridAttributes}
-        {...listeners}
+        {...(readOnly ? {} : listeners)}
       >
         {frame.websiteUrl ? (
           <div className="w-full h-full flex items-center justify-center bg-white">
@@ -611,6 +640,11 @@ function SortableListItem({
 
   const [isEditingCaption, setIsEditingCaption] = useState(false)
   const captionInputRef = useRef<HTMLTextAreaElement>(null)
+  const suppressThumbClickRef = useRef(false)
+
+  useEffect(() => {
+    if (isDragging) suppressThumbClickRef.current = true
+  }, [isDragging])
 
   const autoResizeTextarea = useCallback(() => {
     const textarea = captionInputRef.current
@@ -644,7 +678,8 @@ function SortableListItem({
 
   const baseText = frame.caption.trim()
   const displayText = baseText || 'Add a caption...'
-  const rowDragProps = !readOnly && !isDesktop ? { ...listAttributes, ...listeners } : {}
+  // Mobile: long-press the photo to reorder (keeps caption editable).
+  const thumbDragProps = !readOnly && !isDesktop ? { ...listAttributes, ...listeners } : {}
 
   return (
     <div
@@ -672,7 +707,7 @@ function SortableListItem({
       <div
         className={`flex w-full min-w-0 flex-row items-stretch gap-0 rounded-lg border border-border bg-surface overflow-hidden select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-shadow ${
           isDragging ? 'shadow-[0_12px_28px_rgba(0,0,0,0.22)]' : ''
-        } ${!readOnly && !isDesktop ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        }`}
         tabIndex={0}
         onFocus={() => {
           if (!isEditingCaption) {
@@ -691,19 +726,31 @@ function SortableListItem({
             onEnterFrame(frame)
           }
         }}
-        {...rowDragProps}
       >
         <button
           type="button"
-          className="group/thumb shrink-0 w-14 min-h-14 self-stretch rounded-l-lg overflow-hidden border-r border-border focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset relative"
+          className={`group/thumb shrink-0 w-14 min-h-14 self-stretch rounded-l-lg overflow-hidden border-r border-border focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset relative ${
+            !readOnly && !isDesktop ? 'touch-none cursor-grab active:cursor-grabbing' : ''
+          }`}
           onClick={(e) => {
             if (readOnly) return
             e.stopPropagation()
+            if (suppressThumbClickRef.current) {
+              suppressThumbClickRef.current = false
+              return
+            }
             onFocus?.(frame.id)
             onUpload(frame.id)
           }}
           disabled={readOnly}
-          aria-label={frame.imageUrl || frame.websiteUrl ? `Reupload photo for frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
+          aria-label={
+            !readOnly && !isDesktop
+              ? `Hold to reorder, or tap to ${frame.imageUrl || frame.websiteUrl ? 'reupload' : 'upload'} photo for frame ${index + 1}`
+              : frame.imageUrl || frame.websiteUrl
+                ? `Reupload photo for frame ${index + 1}`
+                : `Upload photo for empty frame ${index + 1}`
+          }
+          {...thumbDragProps}
         >
           {frame.websiteUrl ? (
             <>
@@ -1173,7 +1220,6 @@ export function CreatePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  const { openAuthModal } = useAuthModal()
   const [searchParams, setSearchParams] = useSearchParams()
   const [hydrated, setHydrated] = useState(false)
   const [limitMessageShown, setLimitMessageShown] = useState(false)
@@ -1183,11 +1229,11 @@ export function CreatePage() {
       typeof window !== 'undefined' &&
       window.matchMedia('(max-width: 639px)').matches
     if (initialView === 'list' || initialView === 'feed' || initialView === 'grid') {
-      // Mobile modes are list + feed; map grid → list
-      if (initialView === 'grid' && isMobile) return 'list'
+      // Mobile modes are grid + feed; map list → grid
+      if (initialView === 'list' && isMobile) return 'grid'
       return initialView
     }
-    return isMobile ? 'list' : 'grid'
+    return 'grid'
   })
   const [processingFiles, setProcessingFiles] = useState(false)
   const [insertionIndex, setInsertionIndex] = useState<number | null>(null)
@@ -1202,31 +1248,23 @@ export function CreatePage() {
 
   const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame, publishedSlug, editorHydrated, editorHydrateError, isReadOnly } = useComicStore()
   const hasFrames = frames.length > 0
-  const comicSlugFromUrl = searchParams.get('comic')
 
   useEffect(() => {
     setHydrated(true)
   }, [])
 
-  // Mobile only supports list + feed; keep grid for desktop
+  // Mobile only supports grid + feed; keep list for desktop
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)')
     const syncMobileView = () => {
-      if (mq.matches && view === 'grid') {
-        setView('list')
+      if (mq.matches && view === 'list') {
+        setView('grid')
       }
     }
     syncMobileView()
     mq.addEventListener('change', syncMobileView)
     return () => mq.removeEventListener('change', syncMobileView)
   }, [view])
-
-  useEffect(() => {
-    // Only require auth if not viewing a specific comic
-    if (!authLoading && !user && !comicSlugFromUrl) {
-      openAuthModal(CREATE_AUTH_MESSAGE)
-    }
-  }, [authLoading, user, comicSlugFromUrl, openAuthModal])
 
   // Handle ?view=list&focus=first from "Describe a feeling" homepage entry
   useEffect(() => {
@@ -1265,11 +1303,58 @@ export function CreatePage() {
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 400, tolerance: 8 },
+      activationConstraint: { delay: 250, tolerance: 8 },
     })
   )
 
   const frameIds = useMemo(() => frames.map((f) => f.id), [frames])
+
+  const insertBlankFrameAfter = useCallback(
+    (afterId: string | null) => {
+      if (isReadOnly) return null
+      if (frames.length >= MAX_FRAMES) {
+        setLimitMessageShown(true)
+        return null
+      }
+
+      if (afterId) {
+        const currentIndex = frames.findIndex((f) => f.id === afterId)
+        if (currentIndex !== -1) {
+          const id = addEmptyFrame()
+          if (!id) return null
+          const updatedFrames = useComicStore.getState().frames
+          const newFrames = [...updatedFrames]
+          const newFrame = newFrames.pop()!
+          newFrames.splice(currentIndex + 1, 0, newFrame)
+          reorderFrames(newFrames)
+          setFocusedFrameId(id)
+          setFocusCaptionFrameId(id)
+          if (view === 'feed') {
+            setFeedCurrentIndex(currentIndex + 1)
+          }
+          return id
+        }
+      }
+
+      const id = addEmptyFrame()
+      if (!id) return null
+      setFocusedFrameId(id)
+      setFocusCaptionFrameId(id)
+      if (view === 'feed') {
+        setFeedCurrentIndex(useComicStore.getState().frames.length - 1)
+      }
+      return id
+    },
+    [frames, addEmptyFrame, reorderFrames, isReadOnly, view]
+  )
+
+  const handleMobileAddBlankFrame = useCallback(() => {
+    const afterId =
+      view === 'feed'
+        ? frames[feedCurrentIndex]?.id ?? null
+        : focusedFrameId
+    insertBlankFrameAfter(afterId)
+  }, [view, frames, feedCurrentIndex, focusedFrameId, insertBlankFrameAfter])
 
   const handleSelectFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
@@ -1530,15 +1615,6 @@ export function CreatePage() {
     return <CreatePageSkeleton />
   }
 
-  // Show auth message only if not viewing a specific comic
-  if (!user && !comicSlugFromUrl) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
-        <p className="text-gray-600 mb-4">Sign in to create your comic</p>
-      </div>
-    )
-  }
-
   if (editorHydrateError && !hasFrames) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
@@ -1656,7 +1732,8 @@ export function CreatePage() {
             onClick={() => {
               const id = addEmptyFrame()
               if (id) setFocusCaptionFrameId(id)
-              setView('list')
+              const isMobile = window.matchMedia('(max-width: 639px)').matches
+              setView(isMobile ? 'grid' : 'list')
             }}
             disabled={processingFiles}
             className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
@@ -1694,12 +1771,12 @@ export function CreatePage() {
               {!isReadOnly && (
                 <MobileCreateBar
                   viewToggle={{
-                    label: 'List view',
+                    label: 'Grid view',
                     icon: 'list',
-                    onClick: () => setView('list'),
+                    onClick: () => setView('grid'),
                   }}
                   canAddMore={canAddMore}
-                  onAdd={openFileInput}
+                  onAdd={handleMobileAddBlankFrame}
                   onUpload={() => {
                     const targetId = frames[feedCurrentIndex]?.id
                     if (targetId) {
@@ -1742,9 +1819,9 @@ export function CreatePage() {
                 >
                 <SortableContext
                   items={frameIds}
-                  strategy={verticalListSortingStrategy}
+                  strategy={rectSortingStrategy}
                 >
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     {frames.map((frame, index) => (
                       <SortableGridItem
                         key={frame.id}
@@ -1805,7 +1882,7 @@ export function CreatePage() {
                     onClick: () => setView('feed'),
                   }}
                   canAddMore={canAddMore}
-                  onAdd={openFileInput}
+                  onAdd={handleMobileAddBlankFrame}
                   onUpload={() => {
                     if (focusedFrameId) {
                       handleUploadForFrame(focusedFrameId)
@@ -1897,7 +1974,7 @@ export function CreatePage() {
                     onClick: () => setView('feed'),
                   }}
                   canAddMore={canAddMore}
-                  onAdd={openFileInput}
+                  onAdd={handleMobileAddBlankFrame}
                   onUpload={() => {
                     if (focusedFrameId) {
                       handleUploadForFrame(focusedFrameId)

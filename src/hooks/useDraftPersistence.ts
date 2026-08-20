@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { fetchComicForEditor, readPublishedMetaFromSession } from '../lib/comicEditor'
+import {
+  clearPublishedMetaFromSession,
+  fetchComicForEditor,
+  readPublishedMetaFromSession,
+} from '../lib/comicEditor'
 import type { ComicFrame } from '../stores/useComicStore'
 import { useComicStore } from '../stores/useComicStore'
 import {
@@ -166,13 +170,7 @@ export function useDraftPersistence(
       }
     }
 
-    // Solo create/edit requires a signed-in user.
-    if (!user) {
-      setEditorHydrated({ hydrated: true })
-      return
-    }
-
-    // Reset read-only mode when user is authenticated
+    // Guests and signed-in users can edit new comics; guests only load local drafts.
     setReadOnly(false)
 
     // Already loaded this exact target and editor is ready.
@@ -182,6 +180,7 @@ export function useDraftPersistence(
 
     // Profile (or similar) pre-loaded the comic into the store before navigating here.
     if (
+      user &&
       comicSlugFromUrl &&
       storeMatchesComicSlug(comicSlugFromUrl, current.publishedSlug, current.publishedComicId) &&
       current.frames.length > 0
@@ -193,7 +192,10 @@ export function useDraftPersistence(
     }
 
     // In-progress new comic (no ?comic=) with frames already in memory.
+    // Always treat /create as a new comic — never keep published metadata from a prior draft.
     if (!comicSlugFromUrl && current.frames.length > 0) {
+      restoreDraftMeta({ publishedSlug: null, publishedComicId: null })
+      clearPublishedMetaFromSession()
       loadedForKeyRef.current = key
       hadFramesThisSession.current = true
       setEditorHydrated({ hydrated: true })
@@ -246,7 +248,7 @@ export function useDraftPersistence(
           (!comicSlugFromUrl || draftMatchesComic(draft, comicSlugFromUrl))
 
         if (useLocalDraft && draft?.frames?.length) {
-          if (comicSlugFromUrl) {
+          if (comicSlugFromUrl && user) {
             const ownership = await verifyComicOwnership(comicSlugFromUrl, user.id)
             if (cancelled) return
             if (ownership.error === OWNERSHIP_ERROR) {
@@ -273,17 +275,27 @@ export function useDraftPersistence(
           hadFramesThisSession.current = true
           setFrames(draft.frames.map(storedToFrame))
           setComicTitle(draft.title?.trim() || 'Comic Title')
-          const sessionMeta = readPublishedMetaFromSession()
-          restoreDraftMeta({
-            publishedSlug: draft.publishedSlug ?? sessionMeta.publishedSlug ?? null,
-            publishedComicId: draft.publishedComicId ?? sessionMeta.publishedComicId ?? null,
-          })
+          // On /create (no comicSlugFromUrl), always treat as a new comic even if
+          // the draft still has published metadata from a previous publish.
+          if (!comicSlugFromUrl) {
+            restoreDraftMeta({
+              publishedSlug: null,
+              publishedComicId: null,
+            })
+            clearPublishedMetaFromSession()
+          } else {
+            const sessionMeta = readPublishedMetaFromSession()
+            restoreDraftMeta({
+              publishedSlug: draft.publishedSlug ?? sessionMeta.publishedSlug ?? null,
+              publishedComicId: draft.publishedComicId ?? sessionMeta.publishedComicId ?? null,
+            })
+          }
           loadedForKeyRef.current = key
           setEditorHydrated({ hydrated: true })
           return
         }
 
-        if (comicSlugFromUrl) {
+        if (comicSlugFromUrl && user) {
           const result = await fetchComicForEditor(comicSlugFromUrl)
           if (cancelled) return
           if ('error' in result) {
