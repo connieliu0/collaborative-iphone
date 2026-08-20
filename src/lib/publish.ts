@@ -306,7 +306,7 @@ export async function updateComic(
     .from('comics')
     .select('id, slug')
     .eq('id', comicId)
-    .single()
+    .maybeSingle()
 
   if (comicError) {
     console.error('updateComic: failed to load comic', { comicId, userId, error: comicError })
@@ -314,7 +314,7 @@ export async function updateComic(
   }
 
   if (!comicRow) {
-    return { error: 'Comic not found' }
+    return { error: 'Comic not found. It may have been deleted. Please create a new comic instead.' }
   }
 
   const slug = comicRow.slug as string

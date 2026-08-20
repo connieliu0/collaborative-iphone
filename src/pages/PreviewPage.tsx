@@ -207,16 +207,16 @@ export function PreviewPage() {
       if (slug) {
         const lookup = await fetchComicForEditor(slug)
         if ('error' in lookup) {
-          setPublishing(false)
-          setPublishError(lookup.error)
-          return
-        }
-        if (lookup.ownerId !== user!.id) {
+          // Comic doesn't exist - treat as new comic instead of failing
+          console.warn('Comic not found in database, creating new comic instead', { slug, error: lookup.error })
+          comicId = undefined
+        } else if (lookup.ownerId !== user!.id) {
           setPublishing(false)
           setPublishError('You can only edit your own comics')
           return
+        } else {
+          comicId = lookup.comicId
         }
-        comicId = lookup.comicId
       }
     }
 
