@@ -85,9 +85,15 @@ export async function publishComic(
   frames: ComicFrame[],
   options: PublishOptions = { mode: 'solo' }
 ): Promise<PublishResult> {
-  if (frames.length === 0) {
+  // Filter out completely empty frames (no image, no website, no caption)
+  const framesWithContent = frames.filter((f) => f.imageUrl || f.websiteUrl || f.caption.trim())
+  
+  if (framesWithContent.length === 0) {
     return { error: 'No frames to publish' }
   }
+  
+  // Use filtered frames for publishing
+  frames = framesWithContent
 
   const slug = crypto.randomUUID().slice(0, 8)
   const title = options.title?.trim() || 'Comic Title'
@@ -155,8 +161,8 @@ export async function publishComic(
         return { index: i, file: null, noImageNeeded: true }
       }
       const file = await getFrameUploadFile(frame)
-      // Allow frames with captions even if they don't have valid image files
-      if (!file && frame.caption.trim()) {
+      // Allow frames with any content (caption or website URL) even if image file can't be retrieved
+      if (!file && (frame.caption.trim() || frame.websiteUrl)) {
         return { index: i, file: null, noImageNeeded: true }
       }
       return { index: i, file, noImageNeeded: false }
@@ -305,7 +311,13 @@ export async function updateComic(
   frames: ComicFrame[],
   title?: string
 ): Promise<PublishResult> {
-  if (frames.length === 0) return { error: 'No frames to publish' }
+  // Filter out completely empty frames (no image, no website, no caption)
+  const framesWithContent = frames.filter((f) => f.imageUrl || f.websiteUrl || f.caption.trim())
+  
+  if (framesWithContent.length === 0) return { error: 'No frames to publish' }
+  
+  // Use filtered frames for publishing
+  frames = framesWithContent
 
   const { data: comicRow, error: comicError } = await supabase
     .from('comics')
@@ -337,8 +349,8 @@ export async function updateComic(
         return { index: i, existingUrl: frame.imageUrl }
       }
       const file = await getFrameUploadFile(frame)
-      // Allow frames with captions even if they don't have valid image files
-      if (!file && frame.caption.trim()) {
+      // Allow frames with any content (caption or website URL) even if image file can't be retrieved
+      if (!file && (frame.caption.trim() || frame.websiteUrl)) {
         return { index: i, noImageNeeded: true }
       }
       return { index: i, file, frame }
