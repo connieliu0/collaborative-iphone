@@ -1297,14 +1297,29 @@ export function CreatePage() {
                   }
                 }}
               />
-              {/* Floating bottom toggle for feed view */}
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)]">
+              {/* Floating bottom buttons for feed view */}
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                 <button
                   type="button"
                   onClick={() => setView('grid')}
                   className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  grid toggle
+                  grid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetId = frames[feedCurrentIndex]?.id
+                    if (targetId) {
+                      handleUploadForFrame(targetId)
+                    } else {
+                      openFileInput()
+                    }
+                  }}
+                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                >
+                  <UploadIcon className="w-4 h-4" />
+                  upload
                 </button>
               </div>
               {editingFeedFrame && (
@@ -1361,56 +1376,96 @@ export function CreatePage() {
                   </div>
                 </SortableContext>
               </DndContext>
-              {/* Floating bottom toggle for grid view on mobile */}
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)]">
+              {/* Floating bottom buttons for grid view on mobile */}
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                 <button
                   type="button"
                   onClick={() => setView('feed')}
                   className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  feed toggle
+                  feed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (focusedFrameId) {
+                      handleUploadForFrame(focusedFrameId)
+                    } else {
+                      openFileInput()
+                    }
+                  }}
+                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                >
+                  <UploadIcon className="w-4 h-4" />
+                  upload
                 </button>
               </div>
             </>
           ) : (
-            <DndContext
-              sensors={sensors}
-              autoScroll={false}
-              onDragOver={handleListDragOver}
-              onDragEnd={handleListDragEnd}
-            >
-              <SortableContext
-                items={frameIds}
-                strategy={verticalListSortingStrategy}
+            <>
+              <DndContext
+                sensors={sensors}
+                autoScroll={false}
+                onDragOver={handleListDragOver}
+                onDragEnd={handleListDragEnd}
               >
-                <div className="flex flex-col gap-2">
-                  {frames.map((frame, index) => (
-                    <SortableListItem
-                      key={frame.id}
-                      frame={frame}
-                      index={index}
-                      onRemove={removeFrame}
-                      onUpload={handleUploadForFrame}
-                      onAddLink={handleAddLink}
-                      onEnterFrame={handleEnterOnFrame}
-                      focusCaptionFrameId={focusCaptionFrameId}
-                      onFocusCaptionConsumed={handleFocusCaptionConsumed}
-                      showInsertionBefore={
-                        insertionIndex != null &&
-                        insertionIndex === index &&
-                        index > 0
-                      }
-                      onCaptionChange={(id, caption) =>
-                        updateFrame(id, { caption })
-                      }
-                      onFocus={setFocusedFrameId}
-                      onBlur={() => setFocusedFrameId(null)}
-                      onMultiLinePaste={handleMultiLinePaste}
-                    />
-                  ))}
-                </div>
-              </SortableContext>
-            </DndContext>
+                <SortableContext
+                  items={frameIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="flex flex-col gap-2">
+                    {frames.map((frame, index) => (
+                      <SortableListItem
+                        key={frame.id}
+                        frame={frame}
+                        index={index}
+                        onRemove={removeFrame}
+                        onUpload={handleUploadForFrame}
+                        onAddLink={handleAddLink}
+                        onEnterFrame={handleEnterOnFrame}
+                        focusCaptionFrameId={focusCaptionFrameId}
+                        onFocusCaptionConsumed={handleFocusCaptionConsumed}
+                        showInsertionBefore={
+                          insertionIndex != null &&
+                          insertionIndex === index &&
+                          index > 0
+                        }
+                        onCaptionChange={(id, caption) =>
+                          updateFrame(id, { caption })
+                        }
+                        onFocus={setFocusedFrameId}
+                        onBlur={() => setFocusedFrameId(null)}
+                        onMultiLinePaste={handleMultiLinePaste}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+              {/* Floating bottom buttons for list view on mobile */}
+              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setView('grid')}
+                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  grid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (focusedFrameId) {
+                      handleUploadForFrame(focusedFrameId)
+                    } else {
+                      openFileInput()
+                    }
+                  }}
+                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                >
+                  <UploadIcon className="w-4 h-4" />
+                  upload
+                </button>
+              </div>
+            </>
           )}
 
           <div className="mt-6 flex flex-col items-center gap-3">
