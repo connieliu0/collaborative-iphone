@@ -161,17 +161,14 @@ export async function publishComic(
         return { index: i, file: null, noImageNeeded: true }
       }
       const file = await getFrameUploadFile(frame)
-      // Allow frames with any content (caption or website URL) even if image file can't be retrieved
-      if (!file && (frame.caption.trim() || frame.websiteUrl)) {
+      // If we can't get a file, treat as text-only/website-only frame (don't block publish)
+      if (!file) {
+        console.warn(`Could not retrieve image file for frame ${i + 1}, treating as text-only frame`)
         return { index: i, file: null, noImageNeeded: true }
       }
       return { index: i, file, noImageNeeded: false }
     })
   )
-  const missingFile = fileResults.find((r) => !r.file && !r.noImageNeeded)
-  if (missingFile) {
-    return { error: `Frame ${missingFile.index + 1} has no image file` }
-  }
 
   // Upload in parallel batches for speed
   const BATCH_SIZE = 5
@@ -349,23 +346,14 @@ export async function updateComic(
         return { index: i, existingUrl: frame.imageUrl }
       }
       const file = await getFrameUploadFile(frame)
-      // Allow frames with any content (caption or website URL) even if image file can't be retrieved
-      if (!file && (frame.caption.trim() || frame.websiteUrl)) {
+      // If we can't get a file, treat as text-only/website-only frame (don't block publish)
+      if (!file) {
+        console.warn(`Could not retrieve image file for frame ${i + 1}, treating as text-only frame`)
         return { index: i, noImageNeeded: true }
       }
       return { index: i, file, frame }
     })
   )
-
-  const missingFileIndex = preparedFrames.findIndex((p) => {
-    const hasExisting = 'existingUrl' in p && p.existingUrl
-    const hasFile = 'file' in p && p.file
-    const noImageNeeded = 'noImageNeeded' in p && p.noImageNeeded
-    return !hasExisting && !hasFile && !noImageNeeded
-  })
-  if (missingFileIndex !== -1) {
-    return { error: `Frame ${missingFileIndex + 1} has no image file` }
-  }
 
   // Upload new files in parallel batches
   const BATCH_SIZE = 5
