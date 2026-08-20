@@ -6,7 +6,7 @@ import {
   DndContext,
   type DragEndEvent,
   type DragOverEvent,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -70,6 +70,161 @@ function LinkIcon({ className }: { className?: string }) {
   )
 }
 
+function DragHandleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 10 16" fill="currentColor" aria-hidden>
+      <circle cx="2" cy="2" r="1.25" />
+      <circle cx="8" cy="2" r="1.25" />
+      <circle cx="2" cy="8" r="1.25" />
+      <circle cx="8" cy="8" r="1.25" />
+      <circle cx="2" cy="14" r="1.25" />
+      <circle cx="8" cy="14" r="1.25" />
+    </svg>
+  )
+}
+
+function ListIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </svg>
+  )
+}
+
+function FeedIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="5" y="5" width="14" height="14" rx="1.5" />
+    </svg>
+  )
+}
+
+function PlusIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      aria-hidden
+    >
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M4 7h16" />
+      <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" />
+      <path d="M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </svg>
+  )
+}
+
+const mobileBarButtonClass =
+  'flex flex-1 items-center justify-center self-stretch text-foreground hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset'
+
+function MobileCreateBar({
+  viewToggle,
+  canAddMore,
+  onAdd,
+  onUpload,
+  canRemove,
+  onRemove,
+}: {
+  viewToggle: { label: string; icon: 'list' | 'feed'; onClick: () => void }
+  canAddMore: boolean
+  onAdd: () => void
+  onUpload: () => void
+  canRemove: boolean
+  onRemove: () => void
+}) {
+  return (
+    <div className="fixed bottom-0 inset-x-0 z-20 sm:hidden border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
+      <div className="flex items-stretch max-w-xl mx-auto h-14 divide-x divide-gray-200">
+        <button
+          type="button"
+          onClick={viewToggle.onClick}
+          className={mobileBarButtonClass}
+          aria-label={viewToggle.label}
+        >
+          {viewToggle.icon === 'list' ? (
+            <ListIcon className="w-5 h-5" />
+          ) : (
+            <FeedIcon className="w-5 h-5" />
+          )}
+        </button>
+        {canAddMore && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className={mobileBarButtonClass}
+            aria-label="Add frames"
+          >
+            <PlusIcon className="w-5 h-5" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onUpload}
+          className={mobileBarButtonClass}
+          aria-label="Upload"
+        >
+          <UploadIcon className="w-5 h-5" />
+        </button>
+        {canRemove && (
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.preventDefault()
+              onRemove()
+            }}
+            className={mobileBarButtonClass}
+            aria-label="Remove"
+          >
+            <TrashIcon className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function LinkInputModal({
   frameId,
   initialUrl,
@@ -102,14 +257,14 @@ function LinkInputModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+        className="bg-white border border-gray-300 p-5 max-w-md w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-semibold mb-1">Add Website Link</h3>
+        <h3 className="text-base font-medium mb-1">Add Website Link</h3>
         <p className="text-sm text-gray-500 mb-4">
           Paste a URL, or an Instagram embed code for a post or profile.
         </p>
@@ -123,7 +278,7 @@ function LinkInputModal({
             }}
             placeholder="https://example.com"
             rows={5}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y min-h-[6rem] text-sm"
+            className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-gray-500 resize-y min-h-[6rem] text-sm"
           />
           {error && (
             <p className="mt-2 text-sm text-red-600" role="alert">
@@ -134,14 +289,14 @@ function LinkInputModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={!url.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-gray-900 text-white hover:bg-gray-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save
             </button>
@@ -437,10 +592,21 @@ function SortableListItem({
   } = useSortable({ id: frame.id })
   const { tabIndex: _listTabIndex, ...listAttributes } = attributes
 
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 640px)').matches
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)')
+    const sync = () => setIsDesktop(mq.matches)
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
-    touchAction: 'none',
   }
 
   const [isEditingCaption, setIsEditingCaption] = useState(false)
@@ -449,7 +615,8 @@ function SortableListItem({
   const autoResizeTextarea = useCallback(() => {
     const textarea = captionInputRef.current
     if (!textarea) return
-    textarea.style.height = 'auto'
+    // Collapse first so scrollHeight reflects content, not the default 2-row textarea.
+    textarea.style.height = '0px'
     textarea.style.height = `${textarea.scrollHeight}px`
   }, [])
 
@@ -477,19 +644,35 @@ function SortableListItem({
 
   const baseText = frame.caption.trim()
   const displayText = baseText || 'Add a caption...'
+  const rowDragProps = !readOnly && !isDesktop ? { ...listAttributes, ...listeners } : {}
 
   return (
-    <div className="relative">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative w-full ${isDragging ? 'z-20' : ''}`}
+    >
       {showInsertionBefore && (
         <div
           className="absolute left-0 right-0 top-0 h-0.5 bg-gray-400 rounded-full z-20 pointer-events-none"
           aria-hidden
         />
       )}
+      {!readOnly && isDesktop && (
+        <button
+          type="button"
+          className="absolute right-full top-1/2 -translate-y-1/2 mr-1 shrink-0 p-1.5 text-gray-500 hover:text-gray-700 cursor-grab active:cursor-grabbing touch-none focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 rounded opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+          aria-label={`Drag to reorder frame ${index + 1}`}
+          {...listAttributes}
+          {...listeners}
+        >
+          <DragHandleIcon className="w-2.5 h-4" />
+        </button>
+      )}
       <div
-        ref={setNodeRef}
-        style={style}
-        className={`group flex flex-row items-stretch gap-0 w-full rounded-lg border border-border bg-surface overflow-hidden cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
+        className={`flex w-full min-w-0 flex-row items-stretch gap-0 rounded-lg border border-border bg-surface overflow-hidden select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary transition-shadow ${
+          isDragging ? 'shadow-[0_12px_28px_rgba(0,0,0,0.22)]' : ''
+        } ${!readOnly && !isDesktop ? 'cursor-grab active:cursor-grabbing' : ''}`}
         tabIndex={0}
         onFocus={() => {
           if (!isEditingCaption) {
@@ -508,8 +691,7 @@ function SortableListItem({
             onEnterFrame(frame)
           }
         }}
-        {...listAttributes}
-        {...listeners}
+        {...rowDragProps}
       >
         <button
           type="button"
@@ -573,6 +755,7 @@ function SortableListItem({
           {!readOnly && isEditingCaption ? (
             <textarea
               ref={captionInputRef}
+              rows={1}
               value={frame.caption}
               onChange={(e) => {
                 onCaptionChange(frame.id, e.target.value)
@@ -596,14 +779,15 @@ function SortableListItem({
                   }
                 }
               }}
-                onBlur={() => {
-                  setIsEditingCaption(false)
-                }}
+              onBlur={() => {
+                setIsEditingCaption(false)
+              }}
               onClick={(e) => e.stopPropagation()}
-              className="block w-full min-h-[1.25rem] p-0 m-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-sm leading-snug text-gray-900 placeholder:text-gray-500 placeholder:opacity-100 overflow-hidden"
+              className="block w-full p-0 m-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 resize-none text-sm leading-snug text-gray-900 placeholder:text-gray-500 placeholder:opacity-100 overflow-hidden"
               style={{
                 ...captionFontStyle,
                 lineHeight: 1.375,
+                height: '1.375em',
               }}
               placeholder="Add a caption..."
             />
@@ -621,37 +805,37 @@ function SortableListItem({
             </span>
           )}
         </div>
-        {!readOnly && (
-          <div className="shrink-0 self-center flex items-center gap-1 pr-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onFocus?.(frame.id)
-                onAddLink(frame.id)
-              }}
-              className="p-2 text-gray-400 hover:text-green-500 focus:outline-none"
-              aria-label={`Add website link for frame ${index + 1}`}
-            >
-              <LinkIcon className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onFocus?.(frame.id)
-                onRemove(frame.id)
-              }}
-              className="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
-              aria-label={`Remove frame ${index + 1}`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
       </div>
+      {!readOnly && (
+        <div className="absolute left-full top-1/2 -translate-y-1/2 ml-0.5 hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onFocus?.(frame.id)
+              onAddLink(frame.id)
+            }}
+            className="p-2 text-gray-400 hover:text-green-500 focus:outline-none"
+            aria-label={`Add website link for frame ${index + 1}`}
+          >
+            <LinkIcon className="w-5 h-5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onFocus?.(frame.id)
+              onRemove(frame.id)
+            }}
+            className="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
+            aria-label={`Remove frame ${index + 1}`}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -1079,9 +1263,9 @@ export function CreatePage() {
   }, [frames.length, addEmptyFrame, isReadOnly])
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 5 },
+      activationConstraint: { delay: 400, tolerance: 8 },
     })
   )
 
@@ -1371,7 +1555,13 @@ export function CreatePage() {
   }
 
   return (
-    <div className="relative w-full max-w-xl mx-auto overflow-x-hidden min-w-0">
+    <div
+      className={`relative w-full max-w-xl mx-auto min-w-0 ${
+        view === 'list'
+          ? 'overflow-x-visible sm:pl-9 sm:pr-20'
+          : 'overflow-x-hidden'
+      } ${!isReadOnly ? 'pb-20 sm:pb-0' : ''}`}
+    >
       {isReadOnly && hasFrames && (
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
           <p className="font-medium">Viewing in read-only mode</p>
@@ -1414,12 +1604,12 @@ export function CreatePage() {
         previewStartIndex={focusedFrameId ? frames.findIndex(f => f.id === focusedFrameId) : undefined}
         leftContent={
           <h1 className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
-            Sequence, a comic maker
+            Sequence
           </h1>
         }
         leadingActions={
           hasFrames && !isReadOnly ? (
-            /* Desktop: Grid / List toggle (mobile uses floating bottom toggle) */
+            /* Desktop: Grid / List toggle (mobile uses pinned bottom bar) */
             <div
               className="hidden sm:flex rounded-md border border-border bg-surface p-0.5 shrink-0"
               role="tablist"
@@ -1501,41 +1691,31 @@ export function CreatePage() {
                 }}
                 onSwipePastEnd={handleFeedSwipePastEnd}
               />
-              {/* Floating bottom buttons for feed view */}
               {!isReadOnly && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setView('list')}
-                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    list
-                  </button>
-                  {canAddMore && (
-                    <button
-                      type="button"
-                      onClick={openFileInput}
-                      className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      + add
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const targetId = frames[feedCurrentIndex]?.id
-                      if (targetId) {
-                        handleUploadForFrame(targetId)
-                      } else {
-                        openFileInput()
-                      }
-                    }}
-                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                  >
-                    <UploadIcon className="w-4 h-4" />
-                    upload
-                  </button>
-                </div>
+                <MobileCreateBar
+                  viewToggle={{
+                    label: 'List view',
+                    icon: 'list',
+                    onClick: () => setView('list'),
+                  }}
+                  canAddMore={canAddMore}
+                  onAdd={openFileInput}
+                  onUpload={() => {
+                    const targetId = frames[feedCurrentIndex]?.id
+                    if (targetId) {
+                      handleUploadForFrame(targetId)
+                    } else {
+                      openFileInput()
+                    }
+                  }}
+                  canRemove={Boolean(frames[feedCurrentIndex])}
+                  onRemove={() => {
+                    const id = frames[feedCurrentIndex]?.id
+                    if (!id) return
+                    removeFrame(id)
+                    setFocusedFrameId((current) => (current === id ? null : current))
+                  }}
+                />
               )}
               {editingFeedFrame && (
                 <FeedCaptionEditor
@@ -1617,40 +1797,29 @@ export function CreatePage() {
                   ))}
                 </div>
               )}
-              {/* Floating bottom buttons for grid view on mobile */}
               {!isReadOnly && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setView('feed')}
-                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    feed
-                  </button>
-                  {canAddMore && (
-                    <button
-                      type="button"
-                      onClick={openFileInput}
-                      className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      + add
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (focusedFrameId) {
-                        handleUploadForFrame(focusedFrameId)
-                      } else {
-                        openFileInput()
-                      }
-                    }}
-                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                  >
-                    <UploadIcon className="w-4 h-4" />
-                    upload
-                  </button>
-                </div>
+                <MobileCreateBar
+                  viewToggle={{
+                    label: 'Feed view',
+                    icon: 'feed',
+                    onClick: () => setView('feed'),
+                  }}
+                  canAddMore={canAddMore}
+                  onAdd={openFileInput}
+                  onUpload={() => {
+                    if (focusedFrameId) {
+                      handleUploadForFrame(focusedFrameId)
+                    } else {
+                      openFileInput()
+                    }
+                  }}
+                  canRemove={Boolean(focusedFrameId)}
+                  onRemove={() => {
+                    if (!focusedFrameId) return
+                    removeFrame(focusedFrameId)
+                    setFocusedFrameId(null)
+                  }}
+                />
               )}
             </>
           ) : (
@@ -1720,40 +1889,29 @@ export function CreatePage() {
                   ))}
                 </div>
               )}
-              {/* Floating bottom buttons for list view on mobile */}
               {!isReadOnly && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setView('feed')}
-                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    feed
-                  </button>
-                  {canAddMore && (
-                    <button
-                      type="button"
-                      onClick={openFileInput}
-                      className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      + add
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (focusedFrameId) {
-                        handleUploadForFrame(focusedFrameId)
-                      } else {
-                        openFileInput()
-                      }
-                    }}
-                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                  >
-                    <UploadIcon className="w-4 h-4" />
-                    upload
-                  </button>
-                </div>
+                <MobileCreateBar
+                  viewToggle={{
+                    label: 'Feed view',
+                    icon: 'feed',
+                    onClick: () => setView('feed'),
+                  }}
+                  canAddMore={canAddMore}
+                  onAdd={openFileInput}
+                  onUpload={() => {
+                    if (focusedFrameId) {
+                      handleUploadForFrame(focusedFrameId)
+                    } else {
+                      openFileInput()
+                    }
+                  }}
+                  canRemove={Boolean(focusedFrameId)}
+                  onRemove={() => {
+                    if (!focusedFrameId) return
+                    removeFrame(focusedFrameId)
+                    setFocusedFrameId(null)
+                  }}
+                />
               )}
             </>
           )}

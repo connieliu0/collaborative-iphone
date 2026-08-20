@@ -283,14 +283,14 @@ export function PreviewPage() {
 
       {showTitleModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setShowTitleModal(false)}
         >
           <div
-            className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+            className="bg-white border border-gray-300 p-5 max-w-md w-full mx-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">What do you want to title your comic?</h3>
+            <h3 className="text-base font-medium text-gray-900 mb-4">What do you want to title your comic?</h3>
             <form
               onSubmit={(e) => {
                 e.preventDefault()
@@ -303,19 +303,19 @@ export function PreviewPage() {
                 value={titleInput}
                 onChange={(e) => setTitleInput(e.target.value)}
                 placeholder="Comic Title"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-gray-500 text-gray-900"
               />
               <div className="mt-4 flex gap-2 justify-end">
                 <button
                   type="button"
                   onClick={() => setShowTitleModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-gray-900 text-white hover:bg-gray-800 text-sm"
                 >
                   Publish
                 </button>

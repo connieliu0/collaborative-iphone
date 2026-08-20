@@ -29,13 +29,13 @@ export function PublishSuccessModal({
   }, [shareUrl])
 
   const btnPrimary =
-    'min-h-[44px] px-4 py-2.5 rounded-lg bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:pointer-events-none'
+    'min-h-[44px] px-4 py-2.5 bg-gray-900 text-white font-medium text-sm hover:bg-gray-800 disabled:opacity-50 disabled:pointer-events-none inline-flex items-center justify-center'
   const btnSecondary =
-    'min-h-[44px] px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors'
+    'min-h-[44px] px-4 py-2.5 border border-gray-300 text-gray-700 font-medium text-sm hover:bg-gray-50 inline-flex items-center justify-center'
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
       role="dialog"
       aria-modal="true"
       aria-label="Publish success"
@@ -43,10 +43,10 @@ export function PublishSuccessModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="w-full max-w-md rounded-xl bg-white border border-gray-200 shadow-xl p-4 sm:p-6 mx-2">
+      <div className="w-full max-w-md bg-white border border-gray-300 p-5 mx-2 mb-2 sm:mb-0">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Your comic is live!</h2>
+            <h2 className="text-base font-medium text-gray-900">Your comic is live</h2>
             <p className="text-sm text-gray-600 mt-1">
               Share this link with anyone to view your comic.
             </p>
@@ -54,7 +54,7 @@ export function PublishSuccessModal({
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[36px] h-[36px] rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+            className="min-w-[36px] h-[36px] border border-gray-300 text-gray-700 hover:bg-gray-50 flex items-center justify-center text-lg leading-none"
             aria-label="Close"
           >
             ×
@@ -70,23 +70,15 @@ export function PublishSuccessModal({
             type="text"
             readOnly
             value={shareUrl}
-            className="w-full px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-mono truncate"
+            className="w-full px-3 py-2.5 border border-gray-300 bg-white text-gray-900 text-sm font-mono truncate focus:outline-none"
             aria-label="Shareable URL"
           />
 
-          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className={btnPrimary + ' inline-flex items-center justify-center'}
-            >
+          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
+            <button type="button" onClick={handleCopy} className={btnPrimary}>
               {copied ? 'Copied!' : 'Copy to clipboard'}
             </button>
-
-            <Link
-              to={`/comic/${slug}`}
-              className={btnSecondary + ' inline-flex items-center justify-center'}
-            >
+            <Link to={`/comic/${slug}`} className={btnSecondary}>
               View Comic
             </Link>
           </div>
@@ -97,9 +89,7 @@ export function PublishSuccessModal({
             </p>
           )}
         </div>
-
       </div>
     </div>
   )
 }
-

@@ -61,7 +61,7 @@ export function Layout({ children }: { children?: React.ReactNode }) {
           You&apos;re offline — some features unavailable
         </div>
       )}
-      <main className="flex-1 w-full min-w-0 max-w-[640px] mx-auto px-4 py-6 box-border">
+      <main className="flex-1 w-full min-w-0 max-w-[640px] mx-auto px-2 py-2 box-border">
         {children ?? <Outlet />}
       </main>
     </div>
