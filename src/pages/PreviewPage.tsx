@@ -197,26 +197,37 @@ export function PreviewPage() {
     const publishFrames = frames.filter((frame) => frame.imageUrl || frame.websiteUrl || frame.caption.trim())
     const finalTitle = titleInput.trim() || 'Comic Title'
 
-    let comicId = publishedComicId
-    if (!comicId) {
-      const sessionMeta = readPublishedMetaFromSession()
-      comicId = sessionMeta.publishedComicId
-    }
-    if (!comicId) {
-      const slug = publishedSlug ?? readPublishedMetaFromSession().publishedSlug
-      if (slug) {
-        const lookup = await fetchComicForEditor(slug)
-        if ('error' in lookup) {
-          // Comic doesn't exist - treat as new comic instead of failing
-          console.warn('Comic not found in database, creating new comic instead', { slug, error: lookup.error })
-          comicId = null
-        } else if (lookup.ownerId !== user!.id) {
-          setPublishing(false)
-          setPublishError('You can only edit your own comics')
-          return
-        } else {
-          comicId = lookup.comicId
+    const sessionMeta = readPublishedMetaFromSession()
+    let comicId = publishedComicId ?? sessionMeta.publishedComicId
+    let slug =
+      publishedSlug ??
+      sessionMeta.publishedSlug ??
+      null
+
+    // Also recover comic slug from the create URL we came from (e.g. /create?comic=270203b)
+    if (!slug && typeof window !== 'undefined') {
+      const returnPath = window.sessionStorage.getItem(PREVIEW_RETURN_PATH_KEY)
+      if (returnPath) {
+        try {
+          const returnUrl = new URL(returnPath, window.location.origin)
+          slug = returnUrl.searchParams.get('comic')
+        } catch {
+          // ignore malformed return path
         }
+      }
+    }
+
+    if (!comicId && slug) {
+      const lookup = await fetchComicForEditor(slug)
+      if ('error' in lookup) {
+        console.warn('Comic not found in database, creating new comic instead', { slug, error: lookup.error })
+        comicId = null
+      } else if (lookup.ownerId !== user!.id) {
+        setPublishing(false)
+        setPublishError('You can only edit your own comics')
+        return
+      } else {
+        comicId = lookup.comicId
       }
     }
 

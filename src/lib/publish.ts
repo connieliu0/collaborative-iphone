@@ -156,17 +156,20 @@ export async function publishComic(
     frames.map(async (frame, i) => {
       // Frames without images (website embeds or text-only) don't need upload
       const hasImage = frame.imageFile || frame.imageUrl
-      
       if (!hasImage) {
-        return { index: i, file: null, noImageNeeded: true }
+        return { index: i, file: null as File | null, noImageNeeded: true as const }
+      }
+      // Already-hosted images (e.g. from a previous publish) can be reused as-is
+      if (!frame.imageFile && isRemoteImageUrl(frame.imageUrl)) {
+        return { index: i, file: null as File | null, existingUrl: frame.imageUrl, noImageNeeded: false as const }
       }
       const file = await getFrameUploadFile(frame)
       // If we can't get a file, treat as text-only/website-only frame (don't block publish)
       if (!file) {
         console.warn(`Could not retrieve image file for frame ${i + 1}, treating as text-only frame`)
-        return { index: i, file: null, noImageNeeded: true }
+        return { index: i, file: null as File | null, noImageNeeded: true as const }
       }
-      return { index: i, file, noImageNeeded: false }
+      return { index: i, file, noImageNeeded: false as const }
     })
   )
 
@@ -174,10 +177,12 @@ export async function publishComic(
   const BATCH_SIZE = 5
   const uploadedUrls: string[] = new Array(frames.length)
 
-  // First, fill in empty strings for frames without images
-  for (const { index, noImageNeeded } of fileResults) {
-    if (noImageNeeded) {
-      uploadedUrls[index] = ''
+  // First, fill in existing remote URLs and empty strings for frames without images
+  for (const result of fileResults) {
+    if ('existingUrl' in result && result.existingUrl) {
+      uploadedUrls[result.index] = result.existingUrl
+    } else if (result.noImageNeeded) {
+      uploadedUrls[result.index] = ''
     }
   }
 
