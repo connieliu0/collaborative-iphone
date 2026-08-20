@@ -1871,7 +1871,8 @@ export function CreatePage() {
         ref={fileInputRef}
         type="file"
         accept="image/*,.heic,.heif"
-        multiple
+        capture="environment"
+        multiple={!uploadTargetId}
         max={MAX_FRAMES}
         onChange={handleSelectFiles}
         className="hidden"
