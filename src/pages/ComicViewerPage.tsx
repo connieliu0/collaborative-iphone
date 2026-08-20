@@ -54,7 +54,7 @@ const CAPTION_FONT_FAMILY = COMIC_CAPTION_FONT_FAMILY
 
 export interface FrameDisplay {
   image_url: string
-  website_url?: string
+  website_url?: string | null
   caption: string
   overlay_x: number
   overlay_y: number
