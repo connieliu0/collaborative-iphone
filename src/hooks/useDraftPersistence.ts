@@ -34,9 +34,11 @@ function storeMatchesComicSlug(
 
 function storedToFrame(d: DraftFrameStored): ComicFrame {
   const blobUrl = d.imageBlob ? URL.createObjectURL(d.imageBlob) : ''
+  // Preserve imageFile from imageBlob so publishing can use it directly
+  const imageFile = d.imageBlob instanceof File ? d.imageBlob : (d.imageBlob ? new File([d.imageBlob], `frame-${d.id}.png`, { type: d.imageBlob.type || 'image/png' }) : null)
   return {
     id: d.id,
-    imageFile: null,
+    imageFile,
     imageUrl: blobUrl || d.imageUrl || '',
     websiteUrl: d.websiteUrl,
     caption: d.caption,
