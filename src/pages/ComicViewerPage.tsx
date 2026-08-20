@@ -51,7 +51,7 @@ import {
 import { iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
 import { isWhMontageFrame } from '../lib/whPhotos'
 
-const WH_MONTAGE_INTERVAL_MS = 2000
+const WH_MONTAGE_INTERVAL_MS = 1000
 
 const SWIPE_THRESHOLD_PX = 50
 
