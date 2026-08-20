@@ -100,6 +100,8 @@ interface ComicState {
   editorHydrated: boolean
   editorHydrateError: string | null
   setEditorHydrated: (args: { hydrated: boolean; error?: string | null }) => void
+  isReadOnly: boolean
+  setReadOnly: (readOnly: boolean) => void
 }
 
 export const useComicStore = create<ComicState>((set) => ({
@@ -109,6 +111,7 @@ export const useComicStore = create<ComicState>((set) => ({
   publishedComicId: null,
   editorHydrated: false,
   editorHydrateError: null,
+  isReadOnly: false,
 
   setComicTitle: (title: string) => {
     set({ comicTitle: title })
@@ -233,6 +236,10 @@ export const useComicStore = create<ComicState>((set) => ({
       editorHydrated: hydrated,
       editorHydrateError: error,
     })
+  },
+
+  setReadOnly: (readOnly: boolean) => {
+    set({ isReadOnly: readOnly })
   },
 
   loadPublishedComic: (comicId, slug, title, dbFrames) => {

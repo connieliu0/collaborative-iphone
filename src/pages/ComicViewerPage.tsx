@@ -38,6 +38,7 @@ import { supabase } from '../lib/supabase'
 import { endComic } from '../lib/publish'
 import { useComic } from '../hooks/useComic'
 import { useAuth } from '../hooks/useAuth'
+import { useWhPhotos } from '../hooks/useWhPhotos'
 import {
   CAPTION_OVERLAY_Y_NUDGE,
   COMIC_CAPTION_FONT_FAMILY,
@@ -47,6 +48,9 @@ import {
   resolveCaptionOverlayY,
 } from '../lib/comicCaptionStyle'
 import { iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
+import { isWhMontageFrame } from '../lib/whPhotos'
+
+const WH_MONTAGE_INTERVAL_MS = 2000
 
 const SWIPE_THRESHOLD_PX = 50
 
@@ -350,6 +354,40 @@ export function ComicViewerPage() {
   const canGoPrev = currentIndex > 0
   const canGoNext = currentIndex < frames.length - 1
   const currentFrame = frames[currentIndex]
+  const showWhMontage = isWhMontageFrame(comic?.slug, currentFrame?.caption)
+  const { photos: whPhotos } = useWhPhotos(showWhMontage)
+  const [whMontageIndex, setWhMontageIndex] = useState(0)
+
+  useEffect(() => {
+    setWhMontageIndex(0)
+  }, [showWhMontage, currentFrame?.id])
+
+  useEffect(() => {
+    if (!showWhMontage || whPhotos.length <= 1) return
+    const timer = window.setInterval(() => {
+      setWhMontageIndex((i) => (i + 1) % whPhotos.length)
+    }, WH_MONTAGE_INTERVAL_MS)
+    return () => window.clearInterval(timer)
+  }, [showWhMontage, whPhotos.length])
+
+  useEffect(() => {
+    if (whPhotos.length === 0) {
+      setWhMontageIndex(0)
+      return
+    }
+    if (whMontageIndex >= whPhotos.length) {
+      setWhMontageIndex(0)
+    }
+  }, [whPhotos.length, whMontageIndex])
+
+  const montageDisplayFrame =
+    showWhMontage && currentFrame && whPhotos.length > 0
+      ? {
+          ...currentFrame,
+          image_url: whPhotos[whMontageIndex]?.image_url ?? currentFrame.image_url,
+          website_url: null,
+        }
+      : currentFrame
 
   if (loading) {
     return (
@@ -421,9 +459,9 @@ export function ComicViewerPage() {
         onPointerLeave={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {currentFrame ? (
+        {montageDisplayFrame ? (
           <div className="w-full h-full min-h-0 flex flex-col">
-            <FrameContent frame={currentFrame} showCaption={false} variant="preview" />
+            <FrameContent frame={montageDisplayFrame} showCaption={false} variant="preview" />
           </div>
         ) : (
           <p className="text-gray-500">No frames</p>

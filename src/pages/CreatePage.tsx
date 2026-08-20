@@ -167,6 +167,7 @@ function SortableGridItem({
   onCaptionChange,
   onFocus,
   onBlur,
+  readOnly = false,
 }: {
   frame: ComicFrame
   index: number
@@ -180,6 +181,7 @@ function SortableGridItem({
   onCaptionChange: (id: string, caption: string) => void
   onFocus?: (id: string) => void
   onBlur?: () => void
+  readOnly?: boolean
 }) {
   const {
     attributes,
@@ -236,6 +238,7 @@ function SortableGridItem({
         style={style}
         className={`group aspect-[198/277] relative rounded-lg overflow-hidden bg-[#DDDDDD] border border-border cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
         onClick={(e) => {
+          if (readOnly) return
           onFocus?.(frame.id)
           if (frame.imageUrl) {
             onNavigate(frame.id)
@@ -302,59 +305,62 @@ function SortableGridItem({
           {index + 1}
         </span>
         {/* Top right action buttons */}
-        <div className="absolute top-1 right-1 z-10 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {(frame.imageUrl || frame.websiteUrl) && (
+        {!readOnly && (
+          <div className="absolute top-1 right-1 z-10 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            {(frame.imageUrl || frame.websiteUrl) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onFocus?.(frame.id)
+                  onUpload(frame.id)
+                }}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+                aria-label={`Reupload photo for frame ${index + 1}`}
+              >
+                <UploadIcon className="w-5 h-5" />
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onFocus?.(frame.id)
-                onUpload(frame.id)
+                onRemove(frame.id)
               }}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
-              aria-label={`Reupload photo for frame ${index + 1}`}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+              aria-label={`Remove frame ${index + 1}`}
             >
-              <UploadIcon className="w-5 h-5" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onFocus?.(frame.id)
-              onRemove(frame.id)
-            }}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-white/50"
-            aria-label={`Remove frame ${index + 1}`}
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+          </div>
+        )}
 
         {/* Bottom caption strip for inline editing */}
         <div
-          className={`absolute inset-x-0 bottom-0 min-h-[2.5rem] max-w-[500px] text-white px-1.5 py-1 text-[11px] leading-snug cursor-text transition-colors ${
+          className={`absolute inset-x-0 bottom-0 min-h-[2.5rem] max-w-[500px] text-white px-1.5 py-1 text-[11px] leading-snug transition-colors ${
             frame.websiteUrl ? 'bg-black' : 'bg-black/70 group-hover:bg-black/80'
-          }`}
+          } ${readOnly ? 'cursor-default' : 'cursor-text'}`}
           onClick={(e) => {
+            if (readOnly) return
             e.stopPropagation()
             onFocus?.(frame.id)
             setIsEditingCaption(true)
           }}
         >
-          {isEditingCaption ? (
+          {!readOnly && isEditingCaption ? (
             <textarea
               ref={captionInputRef}
               value={frame.caption}
@@ -381,7 +387,7 @@ function SortableGridItem({
               className={`select-none ${frame.caption.trim() ? '' : 'text-gray-300'}`}
               style={captionFontStyle}
             >
-              {frame.caption.trim() || 'Add a caption...'}
+              {frame.caption.trim() || (readOnly ? '' : 'Add a caption...')}
             </span>
           )}
         </div>
@@ -404,6 +410,7 @@ function SortableListItem({
   onFocus,
   onBlur,
   onMultiLinePaste,
+  readOnly = false,
 }: {
   frame: ComicFrame
   index: number
@@ -418,6 +425,7 @@ function SortableListItem({
   onFocus?: (id: string) => void
   onBlur?: () => void
   onMultiLinePaste?: (frameId: string, lines: string[]) => void
+  readOnly?: boolean
 }) {
   const {
     attributes,
@@ -507,10 +515,12 @@ function SortableListItem({
           type="button"
           className="group/thumb shrink-0 w-14 min-h-14 self-stretch rounded-l-lg overflow-hidden border-r border-border focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset relative"
           onClick={(e) => {
+            if (readOnly) return
             e.stopPropagation()
             onFocus?.(frame.id)
             onUpload(frame.id)
           }}
+          disabled={readOnly}
           aria-label={frame.imageUrl || frame.websiteUrl ? `Reupload photo for frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
         >
           {frame.websiteUrl ? (
@@ -548,8 +558,11 @@ function SortableListItem({
           )}
         </button>
         <div
-          className="flex-1 min-w-0 flex items-center py-3 px-3 text-sm text-gray-900 cursor-text hover:bg-gray-100/80 transition-colors"
+          className={`flex-1 min-w-0 flex items-center py-3 px-3 text-sm text-gray-900 transition-colors ${
+            readOnly ? 'cursor-default' : 'cursor-text hover:bg-gray-100/80'
+          }`}
           onClick={(e) => {
+            if (readOnly) return
             e.stopPropagation()
             onFocus?.(frame.id)
             if (!isEditingCaption) {
@@ -557,7 +570,7 @@ function SortableListItem({
             }
           }}
         >
-          {isEditingCaption ? (
+          {!readOnly && isEditingCaption ? (
             <textarea
               ref={captionInputRef}
               value={frame.caption}
@@ -597,45 +610,47 @@ function SortableListItem({
           ) : (
             <span
               className={`block w-full select-none leading-snug ${
-                displayText === 'Add a caption...' ? 'text-gray-500' : 'text-gray-900'
+                displayText === 'Add a caption...' && !readOnly ? 'text-gray-500' : 'text-gray-900'
               }`}
               style={{
                 ...captionFontStyle,
                 lineHeight: 1.375,
               }}
             >
-              {displayText}
+              {readOnly && displayText === 'Add a caption...' ? '' : displayText}
             </span>
           )}
         </div>
-        <div className="shrink-0 self-center flex items-center gap-1 pr-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onFocus?.(frame.id)
-              onAddLink(frame.id)
-            }}
-            className="p-2 text-gray-400 hover:text-green-500 focus:outline-none"
-            aria-label={`Add website link for frame ${index + 1}`}
-          >
-            <LinkIcon className="w-5 h-5" />
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onFocus?.(frame.id)
-              onRemove(frame.id)
-            }}
-            className="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
-            aria-label={`Remove frame ${index + 1}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="shrink-0 self-center flex items-center gap-1 pr-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onFocus?.(frame.id)
+                onAddLink(frame.id)
+              }}
+              className="p-2 text-gray-400 hover:text-green-500 focus:outline-none"
+              aria-label={`Add website link for frame ${index + 1}`}
+            >
+              <LinkIcon className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onFocus?.(frame.id)
+                onRemove(frame.id)
+              }}
+              className="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
+              aria-label={`Remove frame ${index + 1}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -1001,8 +1016,9 @@ export function CreatePage() {
   const focusHandledRef = useRef(false)
   const [undoSnapshot, setUndoSnapshot] = useState<ComicFrame[] | null>(null)
 
-  const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame, publishedSlug, editorHydrated, editorHydrateError } = useComicStore()
+  const { frames, addFrames, addEmptyFrame, removeFrame, reorderFrames, updateFrame, publishedSlug, editorHydrated, editorHydrateError, isReadOnly } = useComicStore()
   const hasFrames = frames.length > 0
+  const comicSlugFromUrl = searchParams.get('comic')
 
   useEffect(() => {
     setHydrated(true)
@@ -1022,10 +1038,11 @@ export function CreatePage() {
   }, [view])
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    // Only require auth if not viewing a specific comic
+    if (!authLoading && !user && !comicSlugFromUrl) {
       openAuthModal(CREATE_AUTH_MESSAGE)
     }
-  }, [authLoading, user, openAuthModal])
+  }, [authLoading, user, comicSlugFromUrl, openAuthModal])
 
   // Handle ?view=list&focus=first from "Describe a feeling" homepage entry
   useEffect(() => {
@@ -1051,6 +1068,7 @@ export function CreatePage() {
   const canAddMore = frames.length < MAX_FRAMES
 
   const handleFeedSwipePastEnd = useCallback(() => {
+    if (isReadOnly) return false
     if (frames.length >= MAX_FRAMES) return false
     const id = addEmptyFrame()
     if (!id) return false
@@ -1058,7 +1076,7 @@ export function CreatePage() {
     setFeedCurrentIndex(newIndex)
     setFocusedFrameId(id)
     return true
-  }, [frames.length, addEmptyFrame])
+  }, [frames.length, addEmptyFrame, isReadOnly])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -1105,6 +1123,8 @@ export function CreatePage() {
 
   const handlePaste = useCallback(
     async (e: ClipboardEvent) => {
+      if (isReadOnly) return
+
       const images = getImagesFromClipboard(e.clipboardData)
       
       if (images.length > 0) {
@@ -1169,7 +1189,7 @@ export function CreatePage() {
         }
       }
     },
-    [frames.length, focusedFrameId, updateFrame, addFrames, view, addEmptyFrame]
+    [frames.length, focusedFrameId, updateFrame, addFrames, view, addEmptyFrame, isReadOnly]
   )
 
   useEffect(() => {
@@ -1180,6 +1200,7 @@ export function CreatePage() {
   // Handle undo (Ctrl+Z / Cmd+Z)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isReadOnly) return
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         // Only undo if not typing in a text field
         const activeEl = document.activeElement
@@ -1195,7 +1216,7 @@ export function CreatePage() {
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [undoSnapshot, reorderFrames])
+  }, [undoSnapshot, reorderFrames, isReadOnly])
 
   const handleUploadForFrame = (id: string) => {
     setUploadTargetId(id)
@@ -1217,6 +1238,8 @@ export function CreatePage() {
   }
 
   const handleEnterOnFrame = (frame: ComicFrame) => {
+    if (isReadOnly) return
+    
     // Save state for undo
     setUndoSnapshot([...frames])
     
@@ -1238,7 +1261,7 @@ export function CreatePage() {
 
   const handleMultiLinePaste = useCallback(
     (frameId: string, lines: string[]) => {
-      if (lines.length === 0) return
+      if (isReadOnly || lines.length === 0) return
       
       // Save state for undo
       setUndoSnapshot([...frames])
@@ -1268,7 +1291,7 @@ export function CreatePage() {
         setLimitMessageShown(true)
       }
     },
-    [frames, updateFrame, addEmptyFrame]
+    [frames, updateFrame, addEmptyFrame, isReadOnly]
   )
 
   const handleFocusCaptionConsumed = () => {
@@ -1323,7 +1346,8 @@ export function CreatePage() {
     return <CreatePageSkeleton />
   }
 
-  if (!user) {
+  // Show auth message only if not viewing a specific comic
+  if (!user && !comicSlugFromUrl) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] text-center">
         <p className="text-gray-600 mb-4">Sign in to create your comic</p>
@@ -1348,6 +1372,15 @@ export function CreatePage() {
 
   return (
     <div className="relative w-full max-w-xl mx-auto overflow-x-hidden min-w-0">
+      {isReadOnly && hasFrames && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+          <p className="font-medium">Viewing in read-only mode</p>
+          <p className="text-blue-700 mt-1">
+            {user ? 'You can only edit your own comics.' : 'Sign in to edit this comic if you own it.'}
+          </p>
+        </div>
+      )}
+
       {processingFiles && (
         <div
           className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/90 backdrop-blur-sm border border-gray-200"
@@ -1375,7 +1408,7 @@ export function CreatePage() {
 
       <ComicFlowHeader
         variant="create"
-        hideActions={frames.length === 0}
+        hideActions={frames.length === 0 || isReadOnly}
         previewDisabled={frames.length === 0}
         previewReturnTo={createPagePath(publishedSlug, view)}
         previewStartIndex={focusedFrameId ? frames.findIndex(f => f.id === focusedFrameId) : undefined}
@@ -1385,7 +1418,7 @@ export function CreatePage() {
           </h1>
         }
         leadingActions={
-          hasFrames ? (
+          hasFrames && !isReadOnly ? (
             /* Desktop: Grid / List toggle (mobile uses floating bottom toggle) */
             <div
               className="hidden sm:flex rounded-md border border-border bg-surface p-0.5 shrink-0"
@@ -1458,6 +1491,7 @@ export function CreatePage() {
                   }
                 }}
                 onFrameTap={(frame) => {
+                  if (isReadOnly) return
                   setFocusedFrameId(frame.id)
                   if (frame.imageUrl || frame.websiteUrl) {
                     setEditingFeedFrame(frame)
@@ -1468,39 +1502,41 @@ export function CreatePage() {
                 onSwipePastEnd={handleFeedSwipePastEnd}
               />
               {/* Floating bottom buttons for feed view */}
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setView('list')}
-                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  list
-                </button>
-                {canAddMore && (
+              {!isReadOnly && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                   <button
                     type="button"
-                    onClick={openFileInput}
+                    onClick={() => setView('list')}
                     className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    + add
+                    list
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetId = frames[feedCurrentIndex]?.id
-                    if (targetId) {
-                      handleUploadForFrame(targetId)
-                    } else {
-                      openFileInput()
-                    }
-                  }}
-                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                >
-                  <UploadIcon className="w-4 h-4" />
-                  upload
-                </button>
-              </div>
+                  {canAddMore && (
+                    <button
+                      type="button"
+                      onClick={openFileInput}
+                      className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      + add
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetId = frames[feedCurrentIndex]?.id
+                      if (targetId) {
+                        handleUploadForFrame(targetId)
+                      } else {
+                        openFileInput()
+                      }
+                    }}
+                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                  >
+                    <UploadIcon className="w-4 h-4" />
+                    upload
+                  </button>
+                </div>
+              )}
               {editingFeedFrame && (
                 <FeedCaptionEditor
                   frame={editingFeedFrame}
@@ -1517,12 +1553,13 @@ export function CreatePage() {
             </>
           ) : view === 'grid' ? (
             <>
-              <DndContext
-                sensors={sensors}
-                autoScroll={false}
-                onDragOver={handleGridDragOver}
-                onDragEnd={handleGridDragEnd}
-              >
+              {!isReadOnly ? (
+                <DndContext
+                  sensors={sensors}
+                  autoScroll={false}
+                  onDragOver={handleGridDragOver}
+                  onDragEnd={handleGridDragEnd}
+                >
                 <SortableContext
                   items={frameIds}
                   strategy={verticalListSortingStrategy}
@@ -1550,53 +1587,81 @@ export function CreatePage() {
                         }
                         onFocus={setFocusedFrameId}
                         onBlur={() => setFocusedFrameId(null)}
+                        readOnly={isReadOnly}
                       />
                     ))}
                   </div>
                 </SortableContext>
               </DndContext>
+              ) : (
+                <div className="grid grid-cols-3 gap-4">
+                  {frames.map((frame, index) => (
+                    <SortableGridItem
+                      key={frame.id}
+                      frame={frame}
+                      index={index}
+                      onRemove={removeFrame}
+                      onNavigate={handleNavigateToEdit}
+                      onUpload={handleUploadForFrame}
+                      onEnterFrame={handleEnterOnFrame}
+                      focusCaptionFrameId={focusCaptionFrameId}
+                      onFocusCaptionConsumed={handleFocusCaptionConsumed}
+                      showInsertionBefore={false}
+                      onCaptionChange={(id, caption) =>
+                        updateFrame(id, { caption })
+                      }
+                      onFocus={setFocusedFrameId}
+                      onBlur={() => setFocusedFrameId(null)}
+                      readOnly={isReadOnly}
+                    />
+                  ))}
+                </div>
+              )}
               {/* Floating bottom buttons for grid view on mobile */}
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setView('feed')}
-                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  feed
-                </button>
-                {canAddMore && (
+              {!isReadOnly && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                   <button
                     type="button"
-                    onClick={openFileInput}
+                    onClick={() => setView('feed')}
                     className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    + add
+                    feed
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (focusedFrameId) {
-                      handleUploadForFrame(focusedFrameId)
-                    } else {
-                      openFileInput()
-                    }
-                  }}
-                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                >
-                  <UploadIcon className="w-4 h-4" />
-                  upload
-                </button>
-              </div>
+                  {canAddMore && (
+                    <button
+                      type="button"
+                      onClick={openFileInput}
+                      className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      + add
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (focusedFrameId) {
+                        handleUploadForFrame(focusedFrameId)
+                      } else {
+                        openFileInput()
+                      }
+                    }}
+                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                  >
+                    <UploadIcon className="w-4 h-4" />
+                    upload
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <>
-              <DndContext
-                sensors={sensors}
-                autoScroll={false}
-                onDragOver={handleListDragOver}
-                onDragEnd={handleListDragEnd}
-              >
+              {!isReadOnly ? (
+                <DndContext
+                  sensors={sensors}
+                  autoScroll={false}
+                  onDragOver={handleListDragOver}
+                  onDragEnd={handleListDragEnd}
+                >
                 <SortableContext
                   items={frameIds}
                   strategy={verticalListSortingStrategy}
@@ -1624,63 +1689,93 @@ export function CreatePage() {
                         onFocus={setFocusedFrameId}
                         onBlur={() => setFocusedFrameId(null)}
                         onMultiLinePaste={handleMultiLinePaste}
+                        readOnly={isReadOnly}
                       />
                     ))}
                   </div>
                 </SortableContext>
               </DndContext>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {frames.map((frame, index) => (
+                    <SortableListItem
+                      key={frame.id}
+                      frame={frame}
+                      index={index}
+                      onRemove={removeFrame}
+                      onUpload={handleUploadForFrame}
+                      onAddLink={handleAddLink}
+                      onEnterFrame={handleEnterOnFrame}
+                      focusCaptionFrameId={focusCaptionFrameId}
+                      onFocusCaptionConsumed={handleFocusCaptionConsumed}
+                      showInsertionBefore={false}
+                      onCaptionChange={(id, caption) =>
+                        updateFrame(id, { caption })
+                      }
+                      onFocus={setFocusedFrameId}
+                      onBlur={() => setFocusedFrameId(null)}
+                      onMultiLinePaste={handleMultiLinePaste}
+                      readOnly={isReadOnly}
+                    />
+                  ))}
+                </div>
+              )}
               {/* Floating bottom buttons for list view on mobile */}
-              <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setView('feed')}
-                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  feed
-                </button>
-                {canAddMore && (
+              {!isReadOnly && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 sm:hidden pb-[env(safe-area-inset-bottom)] flex gap-2">
                   <button
                     type="button"
-                    onClick={openFileInput}
+                    onClick={() => setView('feed')}
                     className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                   >
-                    + add
+                    feed
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (focusedFrameId) {
-                      handleUploadForFrame(focusedFrameId)
-                    } else {
-                      openFileInput()
-                    }
-                  }}
-                  className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
-                >
-                  <UploadIcon className="w-4 h-4" />
-                  upload
-                </button>
-              </div>
+                  {canAddMore && (
+                    <button
+                      type="button"
+                      onClick={openFileInput}
+                      className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      + add
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (focusedFrameId) {
+                        handleUploadForFrame(focusedFrameId)
+                      } else {
+                        openFileInput()
+                      }
+                    }}
+                    className="px-4 py-2.5 rounded-full bg-white shadow-lg border border-gray-200 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                  >
+                    <UploadIcon className="w-4 h-4" />
+                    upload
+                  </button>
+                </div>
+              )}
             </>
           )}
 
-          <div className="mt-6 flex flex-col items-center gap-3">
-            {canAddMore && (
-              <button
-                type="button"
-                onClick={openFileInput}
-                className="btn-primary hidden sm:inline-flex"
-              >
-                + add more
-              </button>
-            )}
-            {limitMessageShown && frames.length === MAX_FRAMES && (
-              <p className="text-sm text-amber-600" role="status">
-                Maximum {MAX_FRAMES} frames reached
-              </p>
-            )}
-          </div>
+          {!isReadOnly && (
+            <div className="mt-6 flex flex-col items-center gap-3">
+              {canAddMore && (
+                <button
+                  type="button"
+                  onClick={openFileInput}
+                  className="btn-primary hidden sm:inline-flex"
+                >
+                  + add more
+                </button>
+              )}
+              {limitMessageShown && frames.length === MAX_FRAMES && (
+                <p className="text-sm text-amber-600" role="status">
+                  Maximum {MAX_FRAMES} frames reached
+                </p>
+              )}
+            </div>
+          )}
         </>
       )}
 

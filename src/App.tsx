@@ -24,6 +24,7 @@ import { AdminPage } from './pages/session/AdminPage'
 import { GalleryDisplayPage } from './pages/gallery/GalleryDisplayPage'
 import { GalleryUploadPage } from './pages/gallery/GalleryUploadPage'
 import { GalleryResultPage } from './pages/gallery/GalleryResultPage'
+import { WhUploadPage } from './pages/WhUploadPage'
 import { SessionEntryPage } from './pages/session/SessionEntryPage'
 
 export function App() {
@@ -92,6 +93,9 @@ export function App() {
           <Route path="/gallery/display" element={<GalleryDisplayPage />} />
           <Route path="/gallery/upload" element={<GalleryUploadPage />} />
           <Route path="/gallery/result/:id" element={<GalleryResultPage />} />
+
+          {/* WordHack presentation — audience photo drop */}
+          <Route path="/whupload" element={<WhUploadPage />} />
         </Routes>
       </Layout>
     </AuthModalProvider>

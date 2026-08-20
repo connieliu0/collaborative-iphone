@@ -132,6 +132,7 @@ export function useDraftPersistence(
     restoreDraftMeta,
     loadPublishedComic,
     setEditorHydrated,
+    setReadOnly,
   } = useComicStore()
   const loadedForKeyRef = useRef<string | null>(null)
   /** True after we've had at least one frame this session (so we can tell "user cleared all" from "just refreshed". */
@@ -143,11 +144,36 @@ export function useDraftPersistence(
     const key = loadKey(comicSlugFromUrl)
     const current = useComicStore.getState()
 
+    // If viewing a specific comic without auth, load it in read-only mode
+    if (!user && comicSlugFromUrl) {
+      let cancelled = false
+      ;(async () => {
+        const result = await fetchComicForEditor(comicSlugFromUrl)
+        if (cancelled) return
+        if ('error' in result) {
+          loadedForKeyRef.current = key
+          setEditorHydrated({ hydrated: true, error: result.error })
+          return
+        }
+        hadFramesThisSession.current = true
+        loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
+        setReadOnly(true)
+        loadedForKeyRef.current = key
+        setEditorHydrated({ hydrated: true })
+      })()
+      return () => {
+        cancelled = true
+      }
+    }
+
     // Solo create/edit requires a signed-in user.
     if (!user) {
       setEditorHydrated({ hydrated: true })
       return
     }
+
+    // Reset read-only mode when user is authenticated
+    setReadOnly(false)
 
     // Already loaded this exact target and editor is ready.
     if (loadedForKeyRef.current === key && current.editorHydrated) {
@@ -223,7 +249,22 @@ export function useDraftPersistence(
           if (comicSlugFromUrl) {
             const ownership = await verifyComicOwnership(comicSlugFromUrl, user.id)
             if (cancelled) return
-            if (ownership.error) {
+            if (ownership.error === OWNERSHIP_ERROR) {
+              // User is authenticated but not the owner, load in read-only mode
+              const result = await fetchComicForEditor(comicSlugFromUrl)
+              if (cancelled) return
+              if ('error' in result) {
+                loadedForKeyRef.current = key
+                setEditorHydrated({ hydrated: true, error: result.error })
+                return
+              }
+              hadFramesThisSession.current = true
+              loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
+              setReadOnly(true)
+              loadedForKeyRef.current = key
+              setEditorHydrated({ hydrated: true })
+              return
+            } else if (ownership.error) {
               loadedForKeyRef.current = key
               setEditorHydrated({ hydrated: true, error: ownership.error })
               return
@@ -250,9 +291,13 @@ export function useDraftPersistence(
             setEditorHydrated({ hydrated: true, error: result.error })
             return
           }
+          // If user is not the owner, load in read-only mode
           if (result.ownerId !== user.id) {
+            hadFramesThisSession.current = true
+            loadPublishedComic(result.comicId, result.slug, result.title, result.frames)
+            setReadOnly(true)
             loadedForKeyRef.current = key
-            setEditorHydrated({ hydrated: true, error: OWNERSHIP_ERROR })
+            setEditorHydrated({ hydrated: true })
             return
           }
           hadFramesThisSession.current = true
