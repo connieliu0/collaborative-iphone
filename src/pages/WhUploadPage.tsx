@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { prepareGalleryUpload } from '../lib/prepareImage'
+import { prepareWhUpload } from '../lib/prepareImage'
 import { uploadWhPhoto } from '../lib/whPhotos'
 
 type Step = 'pick' | 'uploading' | 'done'
@@ -27,13 +27,13 @@ export function WhUploadPage() {
     setPreview(URL.createObjectURL(file))
 
     try {
-      const prepared = await prepareGalleryUpload(file)
+      const prepared = await prepareWhUpload(file)
       await uploadWhPhoto(prepared)
       setPreview(null)
       setStep('done')
     } catch (err) {
       setPreview(null)
-      setError(err instanceof Error ? err.message : 'Upload failed')
+      setError(err instanceof Error ? err.message : 'Upload failed — please try again')
       setStep('pick')
     }
   }

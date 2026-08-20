@@ -26,23 +26,46 @@ export async function fetchWhPhotos(): Promise<WhPhoto[]> {
   return data ?? []
 }
 
+async function uploadWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 1000
+): Promise<T> {
+  let lastError: Error | null = null
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err))
+      if (i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)))
+      }
+    }
+  }
+  throw lastError
+}
+
 export async function uploadWhPhoto(file: File): Promise<WhPhoto> {
   const path = `wh/${crypto.randomUUID()}.jpg`
 
-  const { error: uploadError } = await supabase.storage
-    .from(GALLERY_BUCKET)
-    .upload(path, file, { upsert: false, contentType: 'image/jpeg' })
-
-  if (uploadError) throw uploadError
+  await uploadWithRetry(async () => {
+    const { error: uploadError } = await supabase.storage
+      .from(GALLERY_BUCKET)
+      .upload(path, file, { upsert: false, contentType: 'image/jpeg' })
+    if (uploadError) throw uploadError
+  })
 
   const { data: urlData } = supabase.storage.from(GALLERY_BUCKET).getPublicUrl(path)
 
-  const { data, error } = await supabase
-    .from('wh_photos')
-    .insert({ image_url: urlData.publicUrl })
-    .select('*')
-    .single()
+  const data = await uploadWithRetry(async () => {
+    const { data, error } = await supabase
+      .from('wh_photos')
+      .insert({ image_url: urlData.publicUrl })
+      .select('*')
+      .single()
+    if (error) throw error
+    return data
+  })
 
-  if (error) throw error
   return data
 }

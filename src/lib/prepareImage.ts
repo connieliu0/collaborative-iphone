@@ -9,6 +9,8 @@ const DEFAULT_MAX_DIMENSION = 1600
 const DEFAULT_QUALITY = 0.82
 const GALLERY_MAX_DIMENSION = 800
 const GALLERY_QUALITY = 0.8
+const WH_MAX_DIMENSION = 500
+const WH_QUALITY = 0.65
 
 /**
  * Unified image preparation: HEIC → JPEG, resize to max dimension, compress.
@@ -30,6 +32,14 @@ export async function prepareGalleryUpload(file: File): Promise<File> {
   return prepareImage(file, {
     maxDimension: GALLERY_MAX_DIMENSION,
     quality: GALLERY_QUALITY,
+  })
+}
+
+/** Resize and compress for WordHack upload. HEIC → JPEG, max 500px, aggressive compression for slow connections. */
+export async function prepareWhUpload(file: File): Promise<File> {
+  return prepareImage(file, {
+    maxDimension: WH_MAX_DIMENSION,
+    quality: WH_QUALITY,
   })
 }
 

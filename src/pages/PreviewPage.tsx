@@ -209,7 +209,7 @@ export function PreviewPage() {
         if ('error' in lookup) {
           // Comic doesn't exist - treat as new comic instead of failing
           console.warn('Comic not found in database, creating new comic instead', { slug, error: lookup.error })
-          comicId = undefined
+          comicId = null
         } else if (lookup.ownerId !== user!.id) {
           setPublishing(false)
           setPublishError('You can only edit your own comics')
