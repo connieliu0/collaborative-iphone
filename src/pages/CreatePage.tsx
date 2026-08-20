@@ -1139,9 +1139,13 @@ function FeedView({
     if (!editingCaptionFrameId) return
     const input = captionInputRef.current
     if (!input) return
-    input.focus()
-    const len = input.value.length
-    input.setSelectionRange(len, len)
+    // Small delay to ensure the textarea is rendered before focusing
+    const timer = setTimeout(() => {
+      input.focus()
+      const len = input.value.length
+      input.setSelectionRange(len, len)
+    }, 50)
+    return () => clearTimeout(timer)
   }, [editingCaptionFrameId])
 
   useEffect(() => {
@@ -1302,26 +1306,46 @@ function FeedView({
                   </div>
                 )}
                 {isEditingCaption ? (
-                  <div
-                    className="absolute inset-x-4 bottom-8 flex items-center justify-center z-10"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <textarea
-                      ref={captionInputRef}
-                      value={frame.caption}
-                      onChange={(e) => onCaptionChange?.(frame.id, e.target.value)}
-                      onBlur={() => onCaptionEditEnd?.()}
-                      placeholder="Add a caption..."
-                      rows={2}
-                      className="w-full bg-transparent border-0 outline-none focus:outline-none focus:ring-0 placeholder-black/40 resize-none text-center"
-                      style={{
-                        ...captionFontStyle,
-                        fontSize: `${frame.fontSize}px`,
-                        color: frame.fontColor,
-                        textShadow: COMIC_TEXT_STROKE_SHADOW,
+                  <>
+                    <div
+                      className="absolute inset-0 z-10 bg-black/95"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onCaptionEditEnd?.()
                       }}
                     />
-                  </div>
+                    <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onCaptionEditEnd?.()
+                        }}
+                        className="px-5 py-2 rounded-full bg-white text-black font-medium text-sm hover:bg-gray-200 transition-colors"
+                      >
+                        Done
+                      </button>
+                    </div>
+                    <div
+                      className="absolute inset-x-4 bottom-8 z-20 flex items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <textarea
+                        ref={captionInputRef}
+                        value={frame.caption}
+                        onChange={(e) => onCaptionChange?.(frame.id, e.target.value)}
+                        placeholder="Add a caption..."
+                        rows={2}
+                        className="w-full bg-transparent border-0 outline-none focus:outline-none focus:ring-0 placeholder-white/50 resize-none text-center"
+                        style={{
+                          ...captionFontStyle,
+                          fontSize: `${frame.fontSize}px`,
+                          color: frame.fontColor,
+                          textShadow: COMIC_TEXT_STROKE_SHADOW,
+                        }}
+                      />
+                    </div>
+                  </>
                 ) : (
                   frame.caption && (
                     <div
@@ -1829,15 +1853,6 @@ export function CreatePage() {
           : 'overflow-x-hidden'
       } ${!isReadOnly ? 'pb-20 sm:pb-0' : ''}`}
     >
-      {isReadOnly && hasFrames && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-          <p className="font-medium">Viewing in read-only mode</p>
-          <p className="text-blue-700 mt-1">
-            {user ? 'You can only edit your own comics.' : 'Sign in to edit this comic if you own it.'}
-          </p>
-        </div>
-      )}
-
       {processingFiles && (
         <div
           className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/90 backdrop-blur-sm border border-gray-200"
@@ -1945,11 +1960,16 @@ export function CreatePage() {
                   setFeedCurrentIndex(index)
                   if (frames[index]) {
                     setFocusedFrameId(frames[index].id)
+                    // Only clear caption editing if we're switching to a different frame
+                    if (editingFeedCaptionId && editingFeedCaptionId !== frames[index].id) {
+                      setEditingFeedCaptionId(null)
+                    }
                   }
-                  setEditingFeedCaptionId(null)
                 }}
                 onFrameTap={(frame) => {
                   if (isReadOnly) return
+                  // Don't trigger upload if we're in caption editing mode
+                  if (editingFeedCaptionId === frame.id) return
                   setFocusedFrameId(frame.id)
                   if (frame.imageUrl || frame.websiteUrl) {
                     setEditingFeedFrame(frame)
