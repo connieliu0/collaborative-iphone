@@ -1416,7 +1416,7 @@ function CreatePageSkeleton() {
 export function CreatePage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
-  const { user, loading: authLoading } = useAuth()
+  const { loading: authLoading } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [hydrated, setHydrated] = useState(false)
   const [limitMessageShown, setLimitMessageShown] = useState(false)

@@ -150,10 +150,16 @@ export async function publishComic(
     frames.map(async (frame, i) => {
       // Frames without images (website embeds or text-only) don't need upload
       const hasImage = frame.imageFile || frame.imageUrl
+      const hasContent = hasImage || frame.websiteUrl || frame.caption.trim()
+      
       if (!hasImage) {
         return { index: i, file: null, noImageNeeded: true }
       }
       const file = await getFrameUploadFile(frame)
+      // Allow frames with captions even if they don't have valid image files
+      if (!file && frame.caption.trim()) {
+        return { index: i, file: null, noImageNeeded: true }
+      }
       return { index: i, file, noImageNeeded: false }
     })
   )
@@ -332,6 +338,10 @@ export async function updateComic(
         return { index: i, existingUrl: frame.imageUrl }
       }
       const file = await getFrameUploadFile(frame)
+      // Allow frames with captions even if they don't have valid image files
+      if (!file && frame.caption.trim()) {
+        return { index: i, noImageNeeded: true }
+      }
       return { index: i, file, frame }
     })
   )
