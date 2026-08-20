@@ -46,7 +46,7 @@ import {
   normalizeLegacyComicCaptionStyle,
   resolveCaptionOverlayY,
 } from '../lib/comicCaptionStyle'
-import { iframeSrcForWebsiteUrl } from '../lib/websiteLink'
+import { iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
 
 const SWIPE_THRESHOLD_PX = 50
 
@@ -93,6 +93,8 @@ export function FrameContent({
       ? resolveCaptionOverlayY(frame.overlay_y)
       : DEFAULT_OVERLAY_Y - CAPTION_OVERLAY_Y_NUDGE
 
+  const isIgEmbed = frame.website_url ? isInstagramEmbed(frame.website_url) : false
+
   return (
     <div
       className={[
@@ -116,8 +118,12 @@ export function FrameContent({
               naturalSize
                 ? 'w-full h-auto block'
                 : isPreview
-                  ? 'w-full h-full object-cover block'
-                  : 'max-w-full max-h-full w-full h-full object-contain block'
+                  ? isIgEmbed
+                    ? 'w-full max-w-[540px] h-full block'
+                    : 'w-full h-full object-cover block'
+                  : isIgEmbed
+                    ? 'w-full max-w-[540px] h-full block'
+                    : 'max-w-full max-h-full w-full h-full object-contain block'
             }
             sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             allow="encrypted-media; clipboard-write; picture-in-picture"

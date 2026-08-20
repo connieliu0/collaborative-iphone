@@ -54,3 +54,7 @@ export function websiteHostname(url: string): string | null {
     return null
   }
 }
+
+export function isInstagramEmbed(url: string): boolean {
+  return findInstagramMatch(url) !== null
+}

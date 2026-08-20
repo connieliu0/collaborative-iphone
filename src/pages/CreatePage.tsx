@@ -232,6 +232,7 @@ function SortableGridItem({
         style={style}
         className={`group aspect-[198/277] relative rounded-lg overflow-hidden bg-[#DDDDDD] border border-border cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
         onClick={(e) => {
+          onFocus?.(frame.id)
           if (frame.imageUrl) {
             onNavigate(frame.id)
           } else {
@@ -303,6 +304,7 @@ function SortableGridItem({
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
+                onFocus?.(frame.id)
                 onUpload(frame.id)
               }}
               className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white hover:text-blue-300 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -315,6 +317,7 @@ function SortableGridItem({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
+              onFocus?.(frame.id)
               onRemove(frame.id)
             }}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -343,6 +346,7 @@ function SortableGridItem({
           }`}
           onClick={(e) => {
             e.stopPropagation()
+            onFocus?.(frame.id)
             setIsEditingCaption(true)
           }}
         >
@@ -500,6 +504,7 @@ function SortableListItem({
           className="group/thumb shrink-0 w-14 min-h-14 self-stretch rounded-l-lg overflow-hidden border-r border-border focus:outline-none focus:ring-2 focus:ring-muted focus:ring-inset relative"
           onClick={(e) => {
             e.stopPropagation()
+            onFocus?.(frame.id)
             onUpload(frame.id)
           }}
           aria-label={frame.imageUrl || frame.websiteUrl ? `Reupload photo for frame ${index + 1}` : `Upload photo for empty frame ${index + 1}`}
@@ -542,6 +547,7 @@ function SortableListItem({
           className="flex-1 min-w-0 flex items-center py-3 px-3 text-sm text-gray-900 cursor-text hover:bg-gray-100/80 transition-colors"
           onClick={(e) => {
             e.stopPropagation()
+            onFocus?.(frame.id)
             if (!isEditingCaption) {
               setIsEditingCaption(true)
             }
@@ -603,6 +609,7 @@ function SortableListItem({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
+              onFocus?.(frame.id)
               onAddLink(frame.id)
             }}
             className="p-2 text-gray-400 hover:text-green-500 focus:outline-none"
@@ -614,6 +621,7 @@ function SortableListItem({
             type="button"
             onClick={(e) => {
               e.stopPropagation()
+              onFocus?.(frame.id)
               onRemove(frame.id)
             }}
             className="p-2 text-gray-400 hover:text-red-500 focus:outline-none"
@@ -1274,8 +1282,14 @@ export function CreatePage() {
               <FeedView
                 frames={frames}
                 currentIndex={feedCurrentIndex}
-                onCurrentIndexChange={setFeedCurrentIndex}
+                onCurrentIndexChange={(index) => {
+                  setFeedCurrentIndex(index)
+                  if (frames[index]) {
+                    setFocusedFrameId(frames[index].id)
+                  }
+                }}
                 onFrameTap={(frame) => {
+                  setFocusedFrameId(frame.id)
                   if (frame.imageUrl) {
                     setEditingFeedFrame(frame)
                   } else {
