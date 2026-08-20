@@ -60,12 +60,11 @@ async function resizeToJpeg(
   const bitmap = await createImageBitmap(file)
   const { width, height } = bitmap
 
+  // Always re-encode through canvas to guarantee real JPEG bytes.
+  // iOS Safari can report HEIC files as 'image/jpeg' — those render locally
+  // but fail when served from remote storage. Canvas.toBlob('image/jpeg')
+  // produces universally compatible JPEG regardless of the source format.
   const longestSide = Math.max(width, height)
-  if (longestSide <= maxDimension && file.type === 'image/jpeg') {
-    bitmap.close()
-    return file
-  }
-
   const scale = Math.min(1, maxDimension / longestSide)
   const w = Math.max(1, Math.round(width * scale))
   const h = Math.max(1, Math.round(height * scale))
