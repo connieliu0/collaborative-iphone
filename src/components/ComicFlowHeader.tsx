@@ -48,7 +48,7 @@ export function ComicFlowHeader({
   }
 
   return (
-    <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2 bg-white">
+    <header className="sticky top-0 z-10 w-full border-b border-[#C2C2C2] mb-4 pt-[env(safe-area-inset-top)] pb-2 ">
       <div className="flex flex-nowrap items-center justify-between gap-2 sm:gap-4 min-w-0 w-full overflow-x-auto">
         <div className="flex items-center min-w-0 shrink-0">
           {variant === 'create' && leftContent}

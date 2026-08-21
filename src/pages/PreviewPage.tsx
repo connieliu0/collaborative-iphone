@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { PREVIEW_RETURN_PATH_KEY } from '../components/ComicFlowHeader'
+import { PreviewNavArrows } from '../components/PreviewNavArrows'
 import { PublishSuccessModal } from '../components/PublishSuccessModal'
 import { useAuthModal } from '../contexts/AuthModalContext'
 import { useAuth } from '../hooks/useAuth'
@@ -379,30 +380,12 @@ export function PreviewPage() {
       </div>
 
       {displayFrames.length > 0 && (
-        <>
-          <button
-            type="button"
-            onClick={goPrev}
-            disabled={!canGoPrev}
-            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
-            aria-label="Previous frame"
-          >
-            <svg className="w-7 h-7 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={!canGoNext}
-            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-10 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 disabled:opacity-30 disabled:pointer-events-none transition-all"
-            aria-label="Next frame"
-          >
-            <svg className="w-7 h-7 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </>
+        <PreviewNavArrows
+          onPrev={goPrev}
+          onNext={goNext}
+          canGoPrev={canGoPrev}
+          canGoNext={canGoNext}
+        />
       )}
 
       {/* Bottom controls removed for fullscreen preview */}

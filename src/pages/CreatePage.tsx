@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ComicFlowHeader } from '../components/ComicFlowHeader'
+import { SampleGallery } from '../components/SampleGallery'
 import { prepareImage, getImagesFromClipboard } from '../lib/prepareImage'
 import {
   DndContext,
@@ -1848,9 +1849,7 @@ export function CreatePage() {
   return (
     <div
       className={`relative w-full max-w-xl mx-auto min-w-0 ${
-        view === 'list'
-          ? 'overflow-x-visible sm:pl-9 sm:pr-20'
-          : 'overflow-x-hidden'
+        view === 'list' ? 'overflow-x-visible' : 'overflow-x-hidden'
       } ${!isReadOnly ? 'pb-20 sm:pb-0' : ''}`}
     >
       {processingFiles && (
@@ -1886,8 +1885,8 @@ export function CreatePage() {
         previewReturnTo={createPagePath(publishedSlug, view)}
         previewStartIndex={focusedFrameId ? frames.findIndex(f => f.id === focusedFrameId) : undefined}
         leftContent={
-          <h1 className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
-            Sequence
+          <h1 className="text-[16px] leading-normal font-bold text-black whitespace-normal">
+            {hasFrames ? 'Sequence' : 'Sequence, is a comic maker'}
           </h1>
         }
         leadingActions={
@@ -1922,33 +1921,36 @@ export function CreatePage() {
       />
 
       {!hasFrames ? (
-        <div className="flex items-stretch gap-6 self-stretch">
-          <button
-            type="button"
-            onClick={openFileInput}
-            disabled={processingFiles}
-            className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
-            aria-label="Upload photos"
-          >
-            <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
-              {processingFiles ? 'Uploading…' : 'Upload Photos'}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const id = addEmptyFrame()
-              if (id) setFocusCaptionFrameId(id)
-              setView('list')
-            }}
-            disabled={processingFiles}
-            className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
-            aria-label="Describe a feeling"
-          >
-            <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
-              Describe a feeling
-            </span>
-          </button>
+        <div className="flex flex-col items-start gap-6 self-stretch">
+          <SampleGallery />
+          <div className="flex flex-col sm:flex-row items-stretch gap-6 self-stretch">
+            <button
+              type="button"
+              onClick={openFileInput}
+              disabled={processingFiles}
+              className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
+              aria-label="Upload photos"
+            >
+              <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
+                {processingFiles ? 'Uploading…' : 'Upload Photos'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const id = addEmptyFrame()
+                if (id) setFocusCaptionFrameId(id)
+                setView('list')
+              }}
+              disabled={processingFiles}
+              className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
+              aria-label="Describe a feeling"
+            >
+              <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
+                Describe a feeling
+              </span>
+            </button>
+          </div>
         </div>
       ) : (
         <>
