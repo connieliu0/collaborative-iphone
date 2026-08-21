@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } fr
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ComicFlowHeader } from '../components/ComicFlowHeader'
 import { SampleGallery } from '../components/SampleGallery'
+import createSamples from '../data/createSamples.json'
 import { prepareImage, getImagesFromClipboard } from '../lib/prepareImage'
 import {
   DndContext,
@@ -394,6 +395,7 @@ function SortableGridItem({
   const [isEditingCaption, setIsEditingCaption] = useState(false)
   const captionInputRef = useRef<HTMLTextAreaElement>(null)
   const suppressClickRef = useRef(false)
+  const gridItemRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (isDragging) suppressClickRef.current = true
@@ -411,6 +413,7 @@ function SortableGridItem({
   useEffect(() => {
     if (focusCaptionFrameId === frame.id) {
       setIsEditingCaption(true)
+      gridItemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       onFocusCaptionConsumed()
     }
   }, [focusCaptionFrameId, frame.id, onFocusCaptionConsumed])
@@ -431,7 +434,10 @@ function SortableGridItem({
         />
       )}
       <div
-        ref={setNodeRef}
+        ref={(node) => {
+          setNodeRef(node)
+          gridItemRef.current = node
+        }}
         style={style}
         className={`group aspect-[198/277] relative rounded-lg overflow-hidden bg-[#DDDDDD] border border-border cursor-grab active:cursor-grabbing select-none focus:outline-none focus:ring-2 focus:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${isDragging ? 'opacity-80 z-10' : ''}`}
         onClick={(e) => {
@@ -665,6 +671,7 @@ function SortableListItem({
   const [isEditingCaption, setIsEditingCaption] = useState(false)
   const captionInputRef = useRef<HTMLTextAreaElement>(null)
   const suppressThumbClickRef = useRef(false)
+  const listItemRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (isDragging) suppressThumbClickRef.current = true
@@ -690,6 +697,7 @@ function SortableListItem({
   useEffect(() => {
     if (focusCaptionFrameId === frame.id) {
       setIsEditingCaption(true)
+      listItemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       onFocusCaptionConsumed()
     }
   }, [focusCaptionFrameId, frame.id, onFocusCaptionConsumed])
@@ -707,7 +715,10 @@ function SortableListItem({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node)
+        listItemRef.current = node
+      }}
       style={style}
       className={`group relative w-full ${isDragging ? 'z-20' : ''}`}
     >
@@ -1192,6 +1203,20 @@ function FeedView({
     requestAnimationFrame(() => scrollToIndex(newIndex))
   }, [frames.length])
 
+  // When + inserts a blank frame (or parent jumps index), scroll if target isn't visible
+  useEffect(() => {
+    const el = frameRefs.current[currentIndex]
+    const root = containerRef.current
+    if (!el || !root || frames.length === 0) return
+    const rect = el.getBoundingClientRect()
+    const rootRect = root.getBoundingClientRect()
+    const visibleEnough =
+      rect.left >= rootRect.left - 8 && rect.right <= rootRect.right + 8
+    if (!visibleEnough) {
+      requestAnimationFrame(() => scrollToIndex(currentIndex))
+    }
+  }, [currentIndex, frames.length])
+
   useEffect(() => {
     const container = containerRef.current
     if (!container || !onSwipePastEnd) return
@@ -1487,6 +1512,45 @@ export function CreatePage() {
   }, [hydrated, editorHydrated, searchParams, setSearchParams, addEmptyFrame])
 
   const canAddMore = frames.length < MAX_FRAMES
+
+  const seedSampleFrame = useCallback(() => {
+    if (isReadOnly) return null
+    const sample = (createSamples as { src: string; caption: string }[])[0]
+    if (!sample) return null
+    const id = addEmptyFrame()
+    if (!id) return null
+    updateFrame(id, {
+      imageUrl: sample.src,
+      caption: sample.caption,
+    })
+    setFocusedFrameId(id)
+    setFeedCurrentIndex(0)
+    // Attach a File so publish can upload the public sample asset
+    void fetch(sample.src)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const file = new File([blob], 'sample1.jpeg', { type: blob.type || 'image/jpeg' })
+        updateFrame(id, { imageFile: file })
+      })
+      .catch(() => {
+        /* display still works via public URL */
+      })
+    return id
+  }, [addEmptyFrame, updateFrame, isReadOnly])
+
+  const handleStartWithUpload = useCallback(() => {
+    const id = seedSampleFrame()
+    if (!id) return
+    const isMobile = window.matchMedia('(max-width: 639px)').matches
+    setView(isMobile ? 'feed' : 'grid')
+  }, [seedSampleFrame])
+
+  const handleStartWithFeeling = useCallback(() => {
+    const id = seedSampleFrame()
+    if (!id) return
+    setFocusCaptionFrameId(id)
+    setView('list')
+  }, [seedSampleFrame])
 
   const handleFeedSwipePastEnd = useCallback(() => {
     if (isReadOnly) return false
@@ -1921,27 +1985,23 @@ export function CreatePage() {
       />
 
       {!hasFrames ? (
-        <div className="flex flex-col items-start gap-6 self-stretch">
+        <div className="flex flex-col items-start gap-3 sm:gap-6 self-stretch">
           <SampleGallery />
-          <div className="flex flex-col sm:flex-row items-stretch gap-6 self-stretch">
+          <div className="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-6 self-stretch">
             <button
               type="button"
-              onClick={openFileInput}
+              onClick={handleStartWithUpload}
               disabled={processingFiles}
               className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
               aria-label="Upload photos"
             >
               <span className="text-[16px] leading-normal font-bold text-black whitespace-nowrap">
-                {processingFiles ? 'Uploading…' : 'Upload Photos'}
+                {processingFiles ? 'Uploading…' : 'Upload photos'}
               </span>
             </button>
             <button
               type="button"
-              onClick={() => {
-                const id = addEmptyFrame()
-                if (id) setFocusCaptionFrameId(id)
-                setView('list')
-              }}
+              onClick={handleStartWithFeeling}
               disabled={processingFiles}
               className="flex-1 min-w-0 min-h-[200px] flex items-center justify-center p-2.5 bg-white border border-dashed border-black hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-2 disabled:opacity-50"
               aria-label="Describe a feeling"

@@ -83,13 +83,13 @@ export function SampleGallery() {
   const sample = samples[index]
   const caption = sample.caption.trim()
   // Compact captions for the short empty-state gallery bar
-  const displayFontSize = isMobile ? 11 : 16
+  const displayFontSize = isMobile ? 16 : 16
   const overlayTopPct = resolveCaptionOverlayY(DEFAULT_OVERLAY_Y)
 
   return (
     <div
       ref={containerRef}
-      className="relative h-[180px] sm:h-[250px] self-stretch shrink-0 bg-[#DDDDDD] overflow-hidden focus:outline-none"
+      className="relative min-h-[200px] h-[200px] self-stretch shrink-0 bg-[#DDDDDD] overflow-hidden focus:outline-none"
       tabIndex={0}
       role="region"
       aria-label="Sample comic gallery"
@@ -114,22 +114,20 @@ export function SampleGallery() {
         <div
           role="img"
           aria-label="Overlay text"
-          className="absolute select-none pointer-events-none flex items-center justify-center"
+          className="absolute inset-x-12 sm:inset-x-16 select-none pointer-events-none flex items-center justify-center"
           style={{
-            left: '50%',
             top: `${overlayTopPct}%`,
-            transform: 'translate(-50%, -50%)',
+            transform: 'translateY(-50%)',
             fontSize: `${displayFontSize}px`,
             color: DEFAULT_COMIC_FONT_COLOR,
             fontWeight: 'bold',
           }}
         >
           <span
-            className="whitespace-pre-wrap break-words text-center"
+            className="whitespace-nowrap text-center"
             style={{
               fontFamily: COMIC_CAPTION_FONT_FAMILY,
               fontWeight: 'bold',
-              maxWidth: isMobile ? '97vw' : undefined,
               textShadow: COMIC_TEXT_STROKE_SHADOW,
             }}
           >
