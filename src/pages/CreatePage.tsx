@@ -1294,11 +1294,13 @@ function FeedView({
         <div className="flex h-full">
           {frames.map((frame, index) => {
             const isEditingCaption = editingCaptionFrameId === frame.id
+            // Feed preview: compact captions (~half edit size, min 12)
+            const displayFontSize = Math.max(12, Math.round(frame.fontSize * 0.5))
             return (
               <div
                 key={frame.id}
                 ref={(el) => { frameRefs.current[index] = el }}
-                className="w-full h-full snap-center shrink-0 relative cursor-pointer flex items-center justify-center"
+                className="w-full h-full snap-center shrink-0 relative cursor-pointer overflow-hidden bg-black"
                 onClick={() => {
                   if (isEditingCaption) return
                   onFrameTap(frame)
@@ -1310,8 +1312,8 @@ function FeedView({
                     title="Website preview"
                     className={
                       isInstagramEmbed(frame.websiteUrl)
-                        ? 'w-full max-w-[540px] h-full pointer-events-none'
-                        : 'w-full h-full pointer-events-none'
+                        ? 'absolute inset-0 w-full h-full max-w-[540px] mx-auto pointer-events-none'
+                        : 'absolute inset-0 w-full h-full pointer-events-none'
                     }
                     sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                     allow="encrypted-media; clipboard-write; picture-in-picture"
@@ -1320,12 +1322,12 @@ function FeedView({
                   <img
                     src={frame.imageUrl}
                     alt=""
-                    className="max-w-full max-h-full object-contain"
+                    className="absolute inset-0 w-full h-full object-cover"
                     loading="lazy"
                     decoding="async"
                   />
                 ) : (
-                  <div className="w-full h-full bg-[#DDDDDD] flex items-center justify-center">
+                  <div className="absolute inset-0 bg-[#DDDDDD] flex items-center justify-center">
                     {!isEditingCaption && (
                       <span className="text-gray-500">+ add photo</span>
                     )}
@@ -1365,7 +1367,7 @@ function FeedView({
                         className="w-full bg-transparent border-0 outline-none focus:outline-none focus:ring-0 placeholder-white/50 resize-none text-center"
                         style={{
                           ...captionFontStyle,
-                          fontSize: `${frame.fontSize}px`,
+                          fontSize: `${displayFontSize}px`,
                           color: frame.fontColor,
                           textShadow: COMIC_TEXT_STROKE_SHADOW,
                         }}
@@ -1375,12 +1377,12 @@ function FeedView({
                 ) : (
                   frame.caption && (
                     <div
-                      className={`absolute bottom-8 left-4 right-4 leading-snug text-center ${
+                      className={`absolute bottom-8 left-4 right-4 z-[1] leading-snug text-center ${
                         frame.websiteUrl ? 'bg-black text-white px-2.5 py-1.5' : ''
                       }`}
                       style={{
                         ...captionFontStyle,
-                        fontSize: `${frame.fontSize}px`,
+                        fontSize: `${displayFontSize}px`,
                         color: frame.websiteUrl ? '#ffffff' : frame.fontColor,
                         textShadow: frame.websiteUrl ? undefined : COMIC_TEXT_STROKE_SHADOW,
                       }}
