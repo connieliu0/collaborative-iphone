@@ -185,6 +185,7 @@ function MobileCreateBar({
   action,
   canRemove,
   onRemove,
+  inFlow = false,
 }: {
   viewToggle: { label: string; icon: 'list' | 'feed'; onClick: () => void }
   canAddMore: boolean
@@ -192,9 +193,17 @@ function MobileCreateBar({
   action: { icon: 'upload' | 'write'; label: string; onClick: () => void }
   canRemove: boolean
   onRemove: () => void
+  /** When true, bar sits in document flow instead of fixed overlay. */
+  inFlow?: boolean
 }) {
   return (
-    <div className="fixed bottom-0 inset-x-0 z-20 sm:hidden border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]">
+    <div
+      className={
+        inFlow
+          ? 'shrink-0 sm:hidden border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]'
+          : 'fixed bottom-0 inset-x-0 z-20 sm:hidden border-t border-border bg-surface pb-[env(safe-area-inset-bottom)]'
+      }
+    >
       <div className="flex items-stretch max-w-xl mx-auto h-14 divide-x divide-gray-200">
         <button
           type="button"
@@ -957,17 +966,17 @@ function FeedCaptionEditor({
       </div>
 
       <div
-        className="flex-1 flex items-center justify-center p-4"
+        className="flex-1 flex items-center justify-center p-6 sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         {frame.websiteUrl ? (
-          <div className="relative w-full max-w-md h-[70vh] flex flex-col">
+          <div className="relative w-full max-w-[280px] sm:max-w-xs h-[55vh] max-h-[420px] flex flex-col">
             <iframe
               src={iframeSrcForWebsiteUrl(frame.websiteUrl)}
               title="Website preview"
               className={
                 isInstagramEmbed(frame.websiteUrl)
-                  ? 'w-full flex-1 min-h-0 max-w-[540px] mx-auto rounded-lg bg-white'
+                  ? 'w-full flex-1 min-h-0 max-w-[280px] mx-auto rounded-lg bg-white'
                   : 'w-full flex-1 min-h-0 rounded-lg bg-white'
               }
               sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
@@ -982,21 +991,21 @@ function FeedCaptionEditor({
               className="mt-3 w-full bg-black text-white border-0 outline-none focus:outline-none focus:ring-0 placeholder-white/50 resize-none text-center px-2.5 py-1.5 rounded"
               style={{
                 ...captionFontStyle,
-                fontSize: `${frame.fontSize}px`,
+                fontSize: `${Math.max(12, Math.round(frame.fontSize * 0.5))}px`,
               }}
             />
           </div>
         ) : frame.imageUrl ? (
-          <div className="relative w-full max-w-md">
+          <div className="relative w-full max-w-[280px] sm:max-w-xs">
             <img
               src={frame.imageUrl}
               alt=""
-              className="w-full h-auto object-contain rounded-lg"
+              className="w-full max-h-[55vh] h-auto object-contain rounded-lg"
               decoding="async"
             />
             {/* Inline editable text overlay - centered on image */}
             <div
-              className="absolute inset-x-4 bottom-8 flex items-center justify-center"
+              className="absolute inset-x-3 bottom-5 flex items-center justify-center"
             >
               <textarea
                 ref={inputRef}
@@ -1007,7 +1016,7 @@ function FeedCaptionEditor({
                 className="w-full bg-transparent border-0 outline-none focus:outline-none focus:ring-0 placeholder-white/50 resize-none text-center"
                 style={{
                   ...captionFontStyle,
-                  fontSize: `${frame.fontSize}px`,
+                  fontSize: `${Math.max(12, Math.round(frame.fontSize * 0.5))}px`,
                   color: frame.fontColor,
                   textShadow: COMIC_TEXT_STROKE_SHADOW,
                 }}
@@ -1113,7 +1122,6 @@ function FeedView({
   editingCaptionFrameId = null,
   onCaptionChange,
   onCaptionEditEnd,
-  pinFilmstripAboveMobileBar = false,
 }: {
   frames: ComicFrame[]
   currentIndex: number
@@ -1125,8 +1133,6 @@ function FeedView({
   editingCaptionFrameId?: string | null
   onCaptionChange?: (id: string, caption: string) => void
   onCaptionEditEnd?: () => void
-  /** On mobile, dock the filmstrip just above the fixed icon bar. */
-  pinFilmstripAboveMobileBar?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const frameRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -1274,21 +1280,11 @@ function FeedView({
   }
 
   return (
-    <div
-      className={
-        pinFilmstripAboveMobileBar
-          ? 'relative h-[calc(100vh-8rem-env(safe-area-inset-bottom,0px))] min-h-[320px] sm:h-[calc(100vh-180px)] sm:min-h-[400px]'
-          : 'relative h-[calc(100vh-180px)] min-h-[400px]'
-      }
-    >
-      {/* Main photo area - horizontal scroll */}
+    <div className="flex flex-col flex-1 min-h-0 h-full">
+      {/* Main photo area - fills remaining space above filmstrip */}
       <div
         ref={containerRef}
-        className={
-          pinFilmstripAboveMobileBar
-            ? 'absolute inset-0 bottom-16 sm:bottom-20 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide'
-            : 'absolute inset-0 bottom-20 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide'
-        }
+        className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden snap-x snap-mandatory scrollbar-hide"
         style={{ scrollSnapType: 'x mandatory' }}
       >
         <div className="flex h-full">
@@ -1355,7 +1351,7 @@ function FeedView({
                       </button>
                     </div>
                     <div
-                      className="absolute inset-x-4 bottom-8 z-20 flex items-center justify-center"
+                      className="absolute inset-x-4 bottom-6 z-20 flex items-center justify-center"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <textarea
@@ -1377,7 +1373,7 @@ function FeedView({
                 ) : (
                   frame.caption && (
                     <div
-                      className={`absolute bottom-8 left-4 right-4 z-[1] leading-snug text-center ${
+                      className={`absolute bottom-6 left-4 right-4 z-[1] leading-snug text-center ${
                         frame.websiteUrl ? 'bg-black text-white px-2.5 py-1.5' : ''
                       }`}
                       style={{
@@ -1397,14 +1393,8 @@ function FeedView({
         </div>
       </div>
 
-      {/* Bottom filmstrip - hold thumbnails to reorder; on mobile sits just above the icon bar */}
-      <div
-        className={
-          pinFilmstripAboveMobileBar
-            ? 'fixed left-0 right-0 z-20 h-16 px-2 py-2 overflow-x-auto scrollbar-hide bg-surface border-t border-border bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] sm:absolute sm:bottom-0 sm:z-auto sm:border-t-0 sm:bg-white/80 sm:backdrop-blur-sm'
-            : 'absolute bottom-0 left-0 right-0 h-16 px-2 py-2 overflow-x-auto scrollbar-hide bg-white/80 backdrop-blur-sm'
-        }
-      >
+      {/* Filmstrip in document flow — reserves space so it never covers captions */}
+      <div className="shrink-0 h-16 px-2 py-2 overflow-x-auto scrollbar-hide bg-surface border-t border-border">
         <DndContext
           sensors={sensors}
           autoScroll
@@ -1429,6 +1419,7 @@ function FeedView({
     </div>
   )
 }
+
 function CreatePageSkeleton() {
   return (
     <div className="w-full max-w-xl mx-auto animate-pulse">
@@ -1912,11 +1903,13 @@ export function CreatePage() {
     )
   }
 
+  const isFeedView = view === 'feed'
+
   return (
     <div
       className={`relative w-full max-w-xl mx-auto min-w-0 ${
         view === 'list' ? 'overflow-x-visible' : 'overflow-x-hidden'
-      } ${!isReadOnly ? 'pb-20 sm:pb-0' : ''}`}
+      } ${!isReadOnly && !isFeedView ? 'pb-20 sm:pb-0' : ''}`}
     >
       {processingFiles && (
         <div
@@ -2018,82 +2011,86 @@ export function CreatePage() {
         <>
           {view === 'feed' ? (
             <>
-              <FeedView
-                frames={frames}
-                currentIndex={feedCurrentIndex}
-                onCurrentIndexChange={(index) => {
-                  setFeedCurrentIndex(index)
-                  if (frames[index]) {
-                    setFocusedFrameId(frames[index].id)
-                    // Only clear caption editing if we're switching to a different frame
-                    if (editingFeedCaptionId && editingFeedCaptionId !== frames[index].id) {
-                      setEditingFeedCaptionId(null)
+              {/* Column layout: image + filmstrip + action bar all take real height.
+                  Full-bleed on mobile (-mx-2 cancels Layout padding) for a wider preview. */}
+              <div className="flex flex-col h-[calc(100dvh-5.5rem-env(safe-area-inset-top,0px))] min-h-[320px] -mx-2 w-[calc(100%+1rem)] sm:mx-0 sm:w-full sm:h-[calc(100vh-180px)] sm:min-h-[400px]">
+                <FeedView
+                  frames={frames}
+                  currentIndex={feedCurrentIndex}
+                  onCurrentIndexChange={(index) => {
+                    setFeedCurrentIndex(index)
+                    if (frames[index]) {
+                      setFocusedFrameId(frames[index].id)
+                      // Only clear caption editing if we're switching to a different frame
+                      if (editingFeedCaptionId && editingFeedCaptionId !== frames[index].id) {
+                        setEditingFeedCaptionId(null)
+                      }
                     }
-                  }
-                }}
-                onFrameTap={(frame) => {
-                  if (isReadOnly) return
-                  // Don't trigger upload if we're in caption editing mode
-                  if (editingFeedCaptionId === frame.id) return
-                  setFocusedFrameId(frame.id)
-                  if (frame.imageUrl || frame.websiteUrl) {
-                    setEditingFeedFrame(frame)
-                  } else {
-                    handleUploadForFrame(frame.id)
-                  }
-                }}
-                onSwipePastEnd={handleFeedSwipePastEnd}
-                onReorder={isReadOnly ? undefined : handleFeedReorder}
-                readOnly={isReadOnly}
-                editingCaptionFrameId={editingFeedCaptionId}
-                onCaptionChange={(id, caption) => updateFrame(id, { caption })}
-                onCaptionEditEnd={() => setEditingFeedCaptionId(null)}
-                pinFilmstripAboveMobileBar={!isReadOnly}
-              />
-              {!isReadOnly && (
-                <MobileCreateBar
-                  viewToggle={{
-                    label: 'List view',
-                    icon: 'list',
-                    onClick: () => setView('list'),
                   }}
-                  canAddMore={canAddMore}
-                  onAdd={handleMobileAddBlankFrame}
-                  action={
-                    frames[feedCurrentIndex] &&
-                    !frames[feedCurrentIndex].imageUrl &&
-                    !frames[feedCurrentIndex].websiteUrl
-                      ? {
-                          icon: 'write',
-                          label: 'Write caption',
-                          onClick: () => {
-                            const frame = frames[feedCurrentIndex]
-                            if (frame) setEditingFeedCaptionId(frame.id)
-                          },
-                        }
-                      : {
-                          icon: 'upload',
-                          label: 'Upload',
-                          onClick: () => {
-                            const targetId = frames[feedCurrentIndex]?.id
-                            if (targetId) {
-                              handleUploadForFrame(targetId)
-                            } else {
-                              openFileInput()
-                            }
-                          },
-                        }
-                  }
-                  canRemove={Boolean(frames[feedCurrentIndex])}
-                  onRemove={() => {
-                    const id = frames[feedCurrentIndex]?.id
-                    if (!id) return
-                    removeFrame(id)
-                    setFocusedFrameId((current) => (current === id ? null : current))
-                    setEditingFeedCaptionId((current) => (current === id ? null : current))
+                  onFrameTap={(frame) => {
+                    if (isReadOnly) return
+                    // Don't trigger upload if we're in caption editing mode
+                    if (editingFeedCaptionId === frame.id) return
+                    setFocusedFrameId(frame.id)
+                    if (frame.imageUrl || frame.websiteUrl) {
+                      setEditingFeedFrame(frame)
+                    } else {
+                      handleUploadForFrame(frame.id)
+                    }
                   }}
+                  onSwipePastEnd={handleFeedSwipePastEnd}
+                  onReorder={isReadOnly ? undefined : handleFeedReorder}
+                  readOnly={isReadOnly}
+                  editingCaptionFrameId={editingFeedCaptionId}
+                  onCaptionChange={(id, caption) => updateFrame(id, { caption })}
+                  onCaptionEditEnd={() => setEditingFeedCaptionId(null)}
                 />
-              )}
+                {!isReadOnly && (
+                  <MobileCreateBar
+                    inFlow
+                    viewToggle={{
+                      label: 'List view',
+                      icon: 'list',
+                      onClick: () => setView('list'),
+                    }}
+                    canAddMore={canAddMore}
+                    onAdd={handleMobileAddBlankFrame}
+                    action={
+                      frames[feedCurrentIndex] &&
+                      !frames[feedCurrentIndex].imageUrl &&
+                      !frames[feedCurrentIndex].websiteUrl
+                        ? {
+                            icon: 'write',
+                            label: 'Write caption',
+                            onClick: () => {
+                              const frame = frames[feedCurrentIndex]
+                              if (frame) setEditingFeedCaptionId(frame.id)
+                            },
+                          }
+                        : {
+                            icon: 'upload',
+                            label: 'Upload',
+                            onClick: () => {
+                              const targetId = frames[feedCurrentIndex]?.id
+                              if (targetId) {
+                                handleUploadForFrame(targetId)
+                              } else {
+                                openFileInput()
+                              }
+                            },
+                          }
+                    }
+                    canRemove={Boolean(frames[feedCurrentIndex])}
+                    onRemove={() => {
+                      const id = frames[feedCurrentIndex]?.id
+                      if (!id) return
+                      removeFrame(id)
+                      setFocusedFrameId((current) => (current === id ? null : current))
+                      setEditingFeedCaptionId((current) => (current === id ? null : current))
+                    }}
+                  />
+                )}
+              </div>
               {editingFeedFrame && (
                 <FeedCaptionEditor
                   frame={editingFeedFrame}
