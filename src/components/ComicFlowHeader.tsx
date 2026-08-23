@@ -178,7 +178,7 @@ export function ComicFlowHeader({
                 <Link
                   to="/profile"
                   aria-label="Go to profile"
-                  className="ml-1 w-[28px] h-[28px] rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-900 transition-colors shrink-0"
+                  className="ml-1 w-[28px] h-[28px] rounded-full bg-transparent text-gray-900 flex items-center justify-center hover:text-black transition-colors shrink-0"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -247,7 +247,7 @@ export function ComicFlowHeader({
                 <Link
                   to="/profile"
                   aria-label="Go to profile"
-                  className="w-[28px] h-[28px] rounded-full bg-black text-white flex items-center justify-center hover:bg-gray-900 transition-colors shrink-0"
+                  className="w-[28px] h-[28px] rounded-full bg-transparent text-gray-900 flex items-center justify-center hover:text-black transition-colors shrink-0"
                 >
                   <svg
                     viewBox="0 0 24 24"
