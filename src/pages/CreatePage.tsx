@@ -84,6 +84,26 @@ function DragHandleIcon({ className }: { className?: string }) {
   )
 }
 
+function GridIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="4" y="4" width="7" height="7" />
+      <rect x="13" y="4" width="7" height="7" />
+      <rect x="4" y="13" width="7" height="7" />
+      <rect x="13" y="13" width="7" height="7" />
+    </svg>
+  )
+}
+
 function ListIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -1612,6 +1632,33 @@ export function CreatePage() {
     insertBlankFrameAfter(afterId)
   }, [view, frames, feedCurrentIndex, focusedFrameId, insertBlankFrameAfter])
 
+  /** Remove a frame; if it was the last one, leave a blank frame so we stay in the editor. */
+  const handleRemoveFrame = useCallback(
+    (id: string) => {
+      if (isReadOnly) return
+      const index = frames.findIndex((f) => f.id === id)
+      removeFrame(id)
+      setFocusedFrameId((current) => (current === id ? null : current))
+      setEditingFeedCaptionId((current) => (current === id ? null : current))
+      setEditingFeedFrame((current) => (current?.id === id ? null : current))
+
+      const remaining = useComicStore.getState().frames
+      if (remaining.length === 0) {
+        const blankId = addEmptyFrame()
+        if (blankId) {
+          setFocusedFrameId(blankId)
+          setFeedCurrentIndex(0)
+        }
+        return
+      }
+
+      if (view === 'feed' && index !== -1) {
+        setFeedCurrentIndex(Math.min(index, remaining.length - 1))
+      }
+    },
+    [isReadOnly, frames, removeFrame, addEmptyFrame, view]
+  )
+
   const handleSelectFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files?.length) return
@@ -1952,27 +1999,29 @@ export function CreatePage() {
           hasFrames && !isReadOnly ? (
             /* Desktop: Grid / List toggle (mobile uses pinned bottom bar) */
             <div
-              className="hidden sm:flex rounded-md border border-border bg-surface p-0.5 shrink-0"
+              className="hidden sm:flex border border-border bg-white p-0.5 shrink-0"
               role="tablist"
               aria-label="View layout"
             >
               <button
                 type="button"
                 role="tab"
+                aria-label="Grid view"
                 aria-selected={view === 'grid'}
                 onClick={() => setView('grid')}
-                className={`px-2 py-1 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'grid' ? 'bg-primary text-on-primary' : 'text-foreground hover:bg-gray-100'}`}
+                className={`flex items-center justify-center size-7 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'grid' ? 'bg-primary text-on-primary' : 'text-primary hover:bg-gray-100'}`}
               >
-                Grid
+                <GridIcon className="w-4 h-4" />
               </button>
               <button
                 type="button"
                 role="tab"
+                aria-label="List view"
                 aria-selected={view === 'list'}
                 onClick={() => setView('list')}
-                className={`px-2 py-1 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'list' ? 'bg-primary text-on-primary' : 'text-foreground hover:bg-gray-100'}`}
+                className={`flex items-center justify-center size-7 transition-colors focus:outline-none focus:ring-2 focus:ring-muted focus:ring-offset-1 ${view === 'list' ? 'bg-primary text-on-primary' : 'text-primary hover:bg-gray-100'}`}
               >
-                List
+                <ListIcon className="w-4 h-4" />
               </button>
             </div>
           ) : undefined
@@ -2084,9 +2133,7 @@ export function CreatePage() {
                     onRemove={() => {
                       const id = frames[feedCurrentIndex]?.id
                       if (!id) return
-                      removeFrame(id)
-                      setFocusedFrameId((current) => (current === id ? null : current))
-                      setEditingFeedCaptionId((current) => (current === id ? null : current))
+                      handleRemoveFrame(id)
                     }}
                   />
                 )}
@@ -2124,7 +2171,7 @@ export function CreatePage() {
                         key={frame.id}
                         frame={frame}
                         index={index}
-                        onRemove={removeFrame}
+                        onRemove={handleRemoveFrame}
                         onNavigate={handleNavigateToEdit}
                         onUpload={handleUploadForFrame}
                         onEnterFrame={handleEnterOnFrame}
@@ -2154,7 +2201,7 @@ export function CreatePage() {
                       key={frame.id}
                       frame={frame}
                       index={index}
-                      onRemove={removeFrame}
+                      onRemove={handleRemoveFrame}
                       onNavigate={handleNavigateToEdit}
                       onUpload={handleUploadForFrame}
                       onEnterFrame={handleEnterOnFrame}
@@ -2194,8 +2241,7 @@ export function CreatePage() {
                   canRemove={Boolean(focusedFrameId)}
                   onRemove={() => {
                     if (!focusedFrameId) return
-                    removeFrame(focusedFrameId)
-                    setFocusedFrameId(null)
+                    handleRemoveFrame(focusedFrameId)
                   }}
                 />
               )}
@@ -2219,7 +2265,7 @@ export function CreatePage() {
                         key={frame.id}
                         frame={frame}
                         index={index}
-                        onRemove={removeFrame}
+                        onRemove={handleRemoveFrame}
                         onUpload={handleUploadForFrame}
                         onAddLink={handleAddLink}
                         onEnterFrame={handleEnterOnFrame}
@@ -2249,7 +2295,7 @@ export function CreatePage() {
                       key={frame.id}
                       frame={frame}
                       index={index}
-                      onRemove={removeFrame}
+                      onRemove={handleRemoveFrame}
                       onUpload={handleUploadForFrame}
                       onAddLink={handleAddLink}
                       onEnterFrame={handleEnterOnFrame}
@@ -2290,8 +2336,7 @@ export function CreatePage() {
                   canRemove={Boolean(focusedFrameId)}
                   onRemove={() => {
                     if (!focusedFrameId) return
-                    removeFrame(focusedFrameId)
-                    setFocusedFrameId(null)
+                    handleRemoveFrame(focusedFrameId)
                   }}
                 />
               )}
