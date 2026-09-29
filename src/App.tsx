@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
+import { Analytics } from "@vercel/analytics/react"
 import { AuthModalProvider } from './contexts/AuthModalContext'
 import { Layout } from './components/Layout'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -98,6 +99,7 @@ export function App() {
           <Route path="/whupload" element={<WhUploadPage />} />
         </Routes>
       </Layout>
+      <Analytics />
     </AuthModalProvider>
   )
 }
