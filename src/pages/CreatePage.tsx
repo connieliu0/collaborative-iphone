@@ -2359,6 +2359,12 @@ export function CreatePage() {
                   Maximum {MAX_FRAMES} frames reached
                 </p>
               )}
+              {frames.length === 1 && (
+                <div className="mt-4 flex flex-col items-center gap-1 text-sm text-gray-500">
+                  <p>ENTER to add a new panel</p>
+                  <p>CTRL+V to paste images from clipboard</p>
+                </div>
+              )}
             </div>
           )}
         </>
