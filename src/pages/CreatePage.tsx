@@ -146,7 +146,7 @@ function PlusIcon({ className }: { className?: string }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.75}
+      strokeWidth={1}
       strokeLinecap="round"
       aria-hidden
     >
@@ -2191,6 +2191,16 @@ export function CreatePage() {
                         readOnly={isReadOnly}
                       />
                     ))}
+                    {canAddMore && (
+                      <button
+                        type="button"
+                        onClick={() => insertBlankFrameAfter(frames[frames.length - 1]?.id ?? null)}
+                        className="hidden sm:flex aspect-[198/277] items-center justify-center rounded-lg bg-white border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label="Add new frame"
+                      >
+                        <PlusIcon className="w-8 h-8 text-gray-400" />
+                      </button>
+                    )}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -2216,6 +2226,16 @@ export function CreatePage() {
                       readOnly={isReadOnly}
                     />
                   ))}
+                  {canAddMore && (
+                    <button
+                      type="button"
+                      onClick={() => insertBlankFrameAfter(frames[frames.length - 1]?.id ?? null)}
+                      className="hidden sm:flex aspect-[198/277] items-center justify-center rounded-lg bg-white border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                      aria-label="Add new frame"
+                    >
+                      <PlusIcon className="w-8 h-8 text-gray-400" />
+                    </button>
+                  )}
                 </div>
               )}
               {!isReadOnly && (
@@ -2285,6 +2305,16 @@ export function CreatePage() {
                         readOnly={isReadOnly}
                       />
                     ))}
+                    {canAddMore && (
+                      <button
+                        type="button"
+                        onClick={() => insertBlankFrameAfter(frames[frames.length - 1]?.id ?? null)}
+                        className="hidden sm:flex w-full min-h-14 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label="Add new frame"
+                      >
+                        <PlusIcon className="w-8 h-8 text-gray-400" />
+                      </button>
+                    )}
                   </div>
                 </SortableContext>
               </DndContext>
@@ -2311,6 +2341,16 @@ export function CreatePage() {
                       readOnly={isReadOnly}
                     />
                   ))}
+                  {canAddMore && (
+                    <button
+                      type="button"
+                      onClick={() => insertBlankFrameAfter(frames[frames.length - 1]?.id ?? null)}
+                      className="hidden sm:flex w-full min-h-14 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+                      aria-label="Add new frame"
+                    >
+                      <PlusIcon className="w-8 h-8 text-gray-400" />
+                    </button>
+                  )}
                 </div>
               )}
               {!isReadOnly && (
@@ -2345,15 +2385,6 @@ export function CreatePage() {
 
           {!isReadOnly && (
             <div className="mt-6 flex flex-col items-center gap-3">
-              {canAddMore && (
-                <button
-                  type="button"
-                  onClick={openFileInput}
-                  className="btn-primary hidden sm:inline-flex"
-                >
-                  + add more
-                </button>
-              )}
               {limitMessageShown && frames.length === MAX_FRAMES && (
                 <p className="text-sm text-amber-600" role="status">
                   Maximum {MAX_FRAMES} frames reached
