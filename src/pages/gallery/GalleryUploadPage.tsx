@@ -222,8 +222,9 @@ export function GalleryUploadPage() {
 
   const handleAddClick = () => {
     if (step === 'mirror' && !uploading) {
-      freezeCarouselAt(focusedIndex)
+      // Must click file input FIRST on iOS Safari (synchronously with user gesture)
       fileInputRef.current?.click()
+      freezeCarouselAt(focusedIndex)
     } else if (step === 'confirm' && error) {
       void handleConfirm()
     }
@@ -274,9 +275,11 @@ export function GalleryUploadPage() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,.heic,.heif"
-        className="hidden"
+        accept="image/*"
+        className="absolute opacity-0 pointer-events-none"
+        style={{ left: '-9999px' }}
         onChange={handleFileChange}
+        tabIndex={-1}
       />
 
       <SequenceInsertCarousel

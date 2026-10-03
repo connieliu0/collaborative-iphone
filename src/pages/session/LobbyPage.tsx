@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
-import { advancePerformanceRound, advanceRound } from '../../lib/session'
+import { useAuthModal } from '../../contexts/AuthModalContext'
+import { advancePerformanceRound, advanceRound, joinSession } from '../../lib/session'
 import { updateMyUsername } from '../../lib/profiles'
 
 const btnPrimary =
@@ -13,7 +14,8 @@ const btnSecondary =
 export function LobbyPage() {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, signInAnonymously } = useAuth()
+  const { openAuthModal } = useAuthModal()
   const { session, members, loading, error, refetch } = useSession(code)
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
@@ -21,6 +23,7 @@ export function LobbyPage() {
   const [nameDraft, setNameDraft] = useState('')
   const [nameBusy, setNameBusy] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
+  const [autoJoining, setAutoJoining] = useState(false)
 
   const isHost = user && session && session.host_id === user.id
   const isPerformance = session?.session_type === 'performance'
@@ -34,6 +37,45 @@ export function LobbyPage() {
       setEditingName(true)
     }
   }, [user?.id, me?.username])
+
+  // Auto-join: if user lands directly on this page without going through SessionEntryPage
+  useEffect(() => {
+    const attemptAutoJoin = async () => {
+      if (!code || loading || autoJoining) return
+      if (!session) return // Wait for session to load
+      
+      // If user is already a member, no need to join
+      if (user && me) return
+      
+      setAutoJoining(true)
+      
+      // Sign in anonymously if needed
+      let currentUser = user
+      if (!currentUser) {
+        const result = await signInAnonymously()
+        if (result.error || !result.user) {
+          openAuthModal('Log in to join this session')
+          setAutoJoining(false)
+          return
+        }
+        currentUser = result.user
+      }
+      
+      // Join the session
+      const joinResult = await joinSession(code, currentUser.id)
+      setAutoJoining(false)
+      
+      if ('error' in joinResult) {
+        setStartError(joinResult.error)
+        return
+      }
+      
+      // Refetch to update members list
+      await refetch()
+    }
+    
+    attemptAutoJoin()
+  }, [code, session, user, me, loading, autoJoining, signInAnonymously, openAuthModal, refetch])
 
   useEffect(() => {
     if (!session) return
@@ -71,7 +113,7 @@ export function LobbyPage() {
     navigate(`/session/${code}/images`, { replace: true })
   }
 
-  if (loading) {
+  if (loading || autoJoining) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] animate-pulse">
         <div className="h-16 w-48 bg-gray-200 rounded-lg mb-4" />

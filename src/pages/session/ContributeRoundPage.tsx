@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSession } from '../../hooks/useSession'
 import { useAuth } from '../../hooks/useAuth'
+import { useAuthModal } from '../../contexts/AuthModalContext'
 import { supabase } from '../../lib/supabase'
 import {
   submitImages,
@@ -11,6 +12,7 @@ import {
   getPhrasesForUser,
   submitPairing,
   getSessionPairings,
+  joinSession,
   type SessionImageRow,
   type SessionPhraseRow,
 } from '../../lib/session'
@@ -28,8 +30,9 @@ const MOCK_IMAGE_URL =
 export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProps = {}) {
   const { code } = useParams<{ code: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const { session, members, loading, error } = useSession(code)
+  const { user, signInAnonymously } = useAuth()
+  const { openAuthModal } = useAuthModal()
+  const { session, members, loading, error, refetch } = useSession(code)
   const isUiTest = mockRoundNumber !== undefined
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -49,8 +52,49 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
   const [selectedPhraseId, setSelectedPhraseId] = useState<string>('')
   const [pairingSubmitted, setPairingSubmitted] = useState(false)
   const [pairingLoaded, setPairingLoaded] = useState(false)
+  const [autoJoining, setAutoJoining] = useState(false)
 
   const roundNumber = mockRoundNumber ?? session?.round_number ?? 1
+  const me = user ? members.find((m) => m.user_id === user.id) ?? null : null
+
+  // Auto-join: if user lands directly on this page without going through SessionEntryPage
+  useEffect(() => {
+    const attemptAutoJoin = async () => {
+      if (!code || loading || autoJoining || isUiTest) return
+      if (!session) return // Wait for session to load
+      
+      // If user is already a member, no need to join
+      if (user && me) return
+      
+      setAutoJoining(true)
+      
+      // Sign in anonymously if needed
+      let currentUser = user
+      if (!currentUser) {
+        const result = await signInAnonymously()
+        if (result.error || !result.user) {
+          openAuthModal('Log in to join this session')
+          setAutoJoining(false)
+          return
+        }
+        currentUser = result.user
+      }
+      
+      // Join the session
+      const joinResult = await joinSession(code, currentUser.id)
+      setAutoJoining(false)
+      
+      if ('error' in joinResult) {
+        setSubmitError(joinResult.error)
+        return
+      }
+      
+      // Refetch to update members list
+      await refetch()
+    }
+    
+    attemptAutoJoin()
+  }, [code, session, user, me, loading, autoJoining, isUiTest, signInAnonymously, openAuthModal, refetch])
 
   useEffect(() => {
     if (isUiTest) return
@@ -214,7 +258,7 @@ export function ContributeRoundPage({ mockRoundNumber }: ContributeRoundPageProp
     setPairingSubmitted(true)
   }
 
-  if (!isUiTest && loading) {
+  if (!isUiTest && (loading || autoJoining)) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
         <div className="h-8 w-8 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
