@@ -50,6 +50,7 @@ import {
 } from '../lib/comicCaptionStyle'
 import { iframeSrcForWebsiteUrl, isInstagramEmbed } from '../lib/websiteLink'
 import { isWhMontageFrame } from '../lib/whPhotos'
+import { createPrintJob, fetchPrintJob, type PrintFrame } from '../lib/gallery'
 
 const WH_MONTAGE_INTERVAL_MS = 1000
 
@@ -233,6 +234,10 @@ export function ComicViewerPage() {
   const { comic, frames, loading, error, refetch } = useComic(id ?? undefined)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [ending, setEnding] = useState(false)
+  const [printJobId, setPrintJobId] = useState<string | null>(null)
+  const [printStatus, setPrintStatus] = useState<string | null>(null)
+  const [printing, setPrinting] = useState(false)
+  const [printError, setPrintError] = useState<string | null>(null)
   const swipeStartRef = useRef<{ x: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -330,6 +335,68 @@ export function ComicViewerPage() {
     refetch()
     setEnding(false)
   }, [comic, user, refetch])
+
+  const handlePrint = useCallback(async () => {
+    if (!frames.length) return
+    setPrinting(true)
+    setPrintError(null)
+
+    try {
+      const printableFrames: PrintFrame[] = frames
+        .filter((f) => f.image_url)
+        .map((f) => ({
+          image_url: f.image_url,
+          caption: f.caption || '',
+        }))
+
+      if (printableFrames.length === 0) {
+        throw new Error('No printable frames found')
+      }
+
+      const jobId = await createPrintJob(printableFrames)
+      setPrintJobId(jobId)
+      setPrintStatus('pending')
+    } catch (err) {
+      setPrintError(err instanceof Error ? err.message : 'Failed to queue print')
+    } finally {
+      setPrinting(false)
+    }
+  }, [frames])
+
+  useEffect(() => {
+    if (!printJobId) return
+
+    const poll = async () => {
+      const job = await fetchPrintJob(printJobId)
+      if (!job) return
+      setPrintStatus(job.status)
+    }
+
+    void poll()
+    const interval = setInterval(poll, 2000)
+
+    const channel = supabase
+      .channel(`print-job-${printJobId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'print_jobs',
+          filter: `id=eq.${printJobId}`,
+        },
+        (payload) => {
+          const status = (payload.new as { status: string }).status
+          setPrintStatus(status)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      clearInterval(interval)
+      void supabase.removeChannel(channel)
+    }
+  }, [printJobId])
 
   const goPrev = useCallback(() => {
     setCurrentIndex((i) => (i > 0 ? i - 1 : i))
@@ -466,6 +533,22 @@ export function ComicViewerPage() {
             End Comic
           </button>
         )}
+        {comic.status === 'complete' && frames.length > 0 && (
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={printing || printStatus === 'pending' || printStatus === 'printing'}
+            className="min-h-[36px] px-3 py-1.5 rounded-lg bg-gray-700 text-white text-sm font-medium hover:bg-gray-600 transition-colors pointer-events-auto disabled:opacity-50"
+          >
+            {printStatus === 'done'
+              ? '✓ Printed'
+              : printStatus === 'pending' || printStatus === 'printing'
+                ? 'Printing…'
+                : printing
+                  ? 'Queuing…'
+                  : 'Print'}
+          </button>
+        )}
       </div>
 
       {/* One frame, full width */}
@@ -517,6 +600,12 @@ export function ComicViewerPage() {
           <span className="text-sm text-gray-300 tabular-nums">
             {currentIndex + 1} / {frames.length}
           </span>
+        </div>
+      )}
+
+      {printError && (
+        <div className="absolute bottom-4 left-4 right-4 z-10 bg-red-900/90 text-white px-4 py-2 rounded-lg text-sm text-center">
+          {printError}
         </div>
       )}
     </div>
